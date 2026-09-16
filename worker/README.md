@@ -44,4 +44,3 @@ SendGrid and MailChannels are no longer used. Delete any old `SENDGRID_API_KEY` 
 ## Scheduling
 
 Invite-only scheduling is implemented under `/api/schedule/` and uses the configured KV/D1 bindings. Route-specific details are in `worker/src/api/schedule/README.md`.
-
