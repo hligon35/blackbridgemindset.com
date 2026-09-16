@@ -1,0 +1,7 @@
+# Local-only Worker secrets. Copy to worker/.dev.vars and fill in real values.
+# Never commit worker/.dev.vars.
+
+ADMIN_ALLOWED_EMAILS=you@example.com
+ADMIN_OTP_SECRET=replace-with-a-long-random-value
+ADMIN_SESSION_SECRET=replace-with-a-different-long-random-value
+YOUTUBE_API_KEY=replace-with-your-youtube-api-key
