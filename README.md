@@ -7,7 +7,7 @@ Official website for the Black Bridge Mindset podcast. The React frontend and ba
 - Frontend: React 19, React Router 7, Vite 7
 - Runtime and hosting: Cloudflare Workers Static Assets
 - Data: Cloudflare D1 + KV
-- Email: Cloudflare Email Service `send_email` binding
+- Email: Resend API from the Cloudflare Worker
 - SMS: Twilio (kept for the scheduling text-message feature)
 
 ## Project structure
@@ -44,10 +44,10 @@ The build creates route-specific HTML entry points for the public pages, which g
 
 ## Cloudflare setup
 
-The production Worker expects the existing D1/KV bindings in `worker/wrangler.toml`, plus the Cloudflare Email Service binding named `EMAIL`.
+The production Worker expects the existing D1/KV bindings in `worker/wrangler.toml`, plus a Resend API key stored as a Worker secret.
 
 1. Add `blackbridgemindset.com` to Cloudflare and point the domain's nameservers at Cloudflare. The registrar can remain wherever it is.
-2. In Cloudflare Email Service, onboard `blackbridgemindset.com`, verify `noreply@blackbridgemindset.com`, and publish the SPF/DKIM/DMARC records Cloudflare provides.
+2. Create a Resend account, add and verify `blackbridgemindset.com`, and publish the DNS records Resend provides. The Worker sends from `noreply@blackbridgemindset.com`.
 3. Create a Cloudflare API token that can deploy Workers and note the account ID.
 4. Add these GitHub repository secrets for the deployment workflow:
    - `CLOUDFLARE_API_TOKEN`
@@ -59,9 +59,10 @@ npx wrangler secret put ADMIN_OTP_SECRET --config worker/wrangler.toml
 npx wrangler secret put ADMIN_SESSION_SECRET --config worker/wrangler.toml
 npx wrangler secret put ADMIN_ALLOWED_EMAILS --config worker/wrangler.toml
 npx wrangler secret put YOUTUBE_API_KEY --config worker/wrangler.toml
+npx wrangler secret put RESEND_API_KEY --config worker/wrangler.toml
 ```
 
-After the first deployment, confirm the `blackbridgemindset.com/*` and `www.blackbridgemindset.com/*` routes are active. Remove any old SendGrid API key from the old hosting/secret store after the Worker is live; the source no longer reads it.
+After the first deployment, confirm the `blackbridgemindset.com/*` and `www.blackbridgemindset.com/*` routes are active. Remove any old SendGrid or Cloudflare Email Service configuration after the Worker is live; the source now uses only Resend.
 
 ## APIs and security
 
