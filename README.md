@@ -1,97 +1,84 @@
 # Black Bridge Mindset Website
 
-Official website for the Black Bridge Mindset podcast.
+Official website for the Black Bridge Mindset podcast. The React frontend and backend APIs deploy together as one Cloudflare Worker.
 
-This repository contains:
-
-- A Vite + React frontend (public marketing pages, episodes, podcast, trio, contact, scheduling UI)
-- A Cloudflare Worker backend (`worker/`) for contact email, scheduling APIs, OTP admin auth, newsletter, and YouTube upload proxy
-
-## Tech Stack
+## Tech stack
 
 - Frontend: React 19, React Router 7, Vite 7
-- Backend: Cloudflare Workers (JavaScript modules)
-- Data: Cloudflare D1 + Cloudflare KV
-- Email: SendGrid / MailChannels via worker abstraction
+- Runtime and hosting: Cloudflare Workers Static Assets
+- Data: Cloudflare D1 + KV
+- Email: Cloudflare Email Service `send_email` binding
+- SMS: Twilio (kept for the scheduling text-message feature)
 
-## Project Structure
+## Project structure
 
 - `src/`: React app source
-- `public/`: static assets and Cloudflare Pages headers
+- `public/`: static assets
 - `worker/src/`: Worker API routes and backend logic
-- `worker/src/api/schedule/`: scheduling endpoints (slots, booking, admin, auth, ICS, YouTube proxy)
-- `scripts/`: one-off maintenance and utility scripts
+- `worker/src/api/schedule/`: scheduling endpoints, admin, newsletter, ICS, and YouTube proxy
+- `scripts/`: build-time utilities, including static route entry-point generation
 
-## Frontend Setup
+## Local setup
 
-1. Install dependencies:
+Install the frontend dependencies and create the local frontend environment:
 
 ```bash
 npm install
-```
-
-1. Configure environment:
-
-```bash
 cp .env.example .env
-```
-
-Set values as needed:
-
-- `VITE_CONTACT_ENDPOINT` (optional for local/dev API routing)
-- `VITE_SCHEDULE_API_BASE` (optional if worker is same-origin)
-- `VITE_NEWSLETTER_SUBSCRIBE_ENDPOINT` (optional override)
-- `VITE_YOUTUBE_API_KEY` (dev-only fallback; do not set in production)
-
-1. Start development server:
-
-```bash
 npm run dev
 ```
 
-1. Build production bundle:
+For local Worker development, copy `worker/.dev.vars.example` to `worker/.dev.vars`, fill in the values, then run:
+
+```bash
+npx wrangler dev --config worker/wrangler.toml
+```
+
+Build the production frontend with:
 
 ```bash
 npm run build
 ```
 
-## Worker Setup
+The build creates route-specific HTML entry points for the public pages, which gives crawlers a real document at each trailing-slash URL.
 
-Worker configuration lives in `worker/wrangler.toml`.
+## Cloudflare setup
 
-Typical local workflow:
+The production Worker expects the existing D1/KV bindings in `worker/wrangler.toml`, plus the Cloudflare Email Service binding named `EMAIL`.
+
+1. Add `blackbridgemindset.com` to Cloudflare and point the domain's nameservers at Cloudflare. The registrar can remain wherever it is.
+2. In Cloudflare Email Service, onboard `blackbridgemindset.com`, verify `noreply@blackbridgemindset.com`, and publish the SPF/DKIM/DMARC records Cloudflare provides.
+3. Create a Cloudflare API token that can deploy Workers and note the account ID.
+4. Add these GitHub repository secrets for the deployment workflow:
+   - `CLOUDFLARE_API_TOKEN`
+   - `CLOUDFLARE_ACCOUNT_ID`
+5. Set the Worker secrets:
 
 ```bash
-cd worker
-npm install
-npx wrangler dev
+npx wrangler secret put ADMIN_OTP_SECRET --config worker/wrangler.toml
+npx wrangler secret put ADMIN_SESSION_SECRET --config worker/wrangler.toml
+npx wrangler secret put ADMIN_ALLOWED_EMAILS --config worker/wrangler.toml
+npx wrangler secret put YOUTUBE_API_KEY --config worker/wrangler.toml
 ```
 
-Required bindings and vars depend on features in use, including:
+After the first deployment, confirm the `blackbridgemindset.com/*` and `www.blackbridgemindset.com/*` routes are active. Remove any old SendGrid API key from the old hosting/secret store after the Worker is live; the source no longer reads it.
 
-- `SCHEDULE_DB` (D1)
-- `SCHEDULE_TOKENS`, `SCHEDULE_CONFIG`, optionally `SCHEDULE_BOOKINGS` (KV)
-- `ALLOWED_ORIGINS`, `SCHEDULE_ADMIN_ALLOWED_HOSTS`
-- Email provider environment variables
+## APIs and security
 
-See `worker/README.md` and `worker/src/api/schedule/README.md` for route-specific details.
+- Contact, newsletter, booking, and admin requests are served under `/api/` by the Worker.
+- The frontend is served from the same Worker, so production API calls are same-origin.
+- Contact and booking endpoints use KV-backed rate limiting.
+- YouTube access uses the server-side Worker proxy in production.
+- Public pages are indexed through the canonical trailing-slash routes in `public/sitemap.xml`; private/admin routes are marked `noindex`.
 
-## Security Notes
-
-- Keep YouTube API keys out of production client bundles. The site uses `/api/schedule/youtube/uploads` as the preferred server-side proxy.
-- Contact and booking endpoints include rate limiting using KV-backed counters.
-- Security headers are defined at both Pages (`public/_headers`) and Worker response layers.
-
-## Database Migration
-
-To enforce booking idempotency by timeslot, apply:
-
-- `worker/src/api/schedule/migration-unique-datetime.sql`
-
-Before applying, verify there are no duplicate `datetime` values in existing `bookings` rows.
+See `worker/README.md` and `worker/src/api/schedule/README.md` for endpoint details.
 
 ## Deployment
 
-- Frontend is designed for Cloudflare Pages deployment.
-- Worker deploy is managed independently via Wrangler.
-- Ensure environment variables and bindings are configured in each target environment.
+Pushes to `main` run `.github/workflows/deploy.yml`, which builds the frontend and deploys the Worker plus static assets with Wrangler. A manual deployment can be run from the repository root:
+
+```bash
+npm run build
+npx wrangler deploy --config worker/wrangler.toml
+```
+
