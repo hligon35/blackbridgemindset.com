@@ -48,19 +48,18 @@ function makeMessage({ to, fromEmail, fromName, subject, text, html, replyTo }) 
     ? String(html)
     : defaultThemedHtml({ subject: cleanSubject, text: cleanText });
 
+  const cleanFromEmail = assertString('EMAIL_FROM', fromEmail);
+  const cleanFromName = String(fromName || '').trim();
   const message = {
     to: recipients,
-    from: {
-      email: assertString('EMAIL_FROM', fromEmail),
-      name: String(fromName || '').trim() || undefined,
-    },
+    from: cleanFromName ? `${cleanFromName} <${cleanFromEmail}>` : cleanFromEmail,
     subject: cleanSubject,
     text: cleanText,
     html: themedHtml,
   };
 
   const cleanReplyTo = normalizeEmail(replyTo);
-  if (cleanReplyTo) message.replyTo = cleanReplyTo;
+  if (cleanReplyTo) message.reply_to = cleanReplyTo;
 
   return message;
 }
@@ -72,21 +71,31 @@ function chunk(values, size) {
 }
 
 /**
- * Send through Cloudflare Email Service.
+ * Send through the Resend Email API.
  *
- * The binding accepts at most 50 combined recipients per message, so
- * newsletter/admin broadcasts are sent in bounded batches.
+ * Resend accepts at most 50 recipients per request, so newsletter/admin
+ * broadcasts are sent in bounded batches.
  */
 export async function sendEmail(env, { to, fromEmail, fromName, subject, text, html, replyTo }) {
-  if (!env.EMAIL || typeof env.EMAIL.send !== 'function') {
-    throw new Error('Cloudflare Email Service binding EMAIL not configured');
-  }
-
   const message = makeMessage({ to, fromEmail, fromName, subject, text, html, replyTo });
   const recipients = message.to;
+  const apiKey = assertString('RESEND_API_KEY', env.RESEND_API_KEY);
 
   for (const recipientBatch of chunk(recipients, 50)) {
-    await env.EMAIL.send({ ...message, to: recipientBatch });
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ...message, to: recipientBatch }),
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      const detail = body?.message || body?.error || `HTTP ${response.status}`;
+      throw new Error(`Resend send failed (${response.status}). ${detail}`);
+    }
   }
 
   return { ok: true };
