@@ -19,6 +19,8 @@ export default function Router() {
         <Route path="/podcast" element={<Podcast />} />
         <Route path="/trio" element={<Trio />} />
         <Route path="/contact" element={<Contact />} />
+        {/* Legacy path retained so previously discovered links no longer return 404. */}
+        <Route path="/bbm/podcast" element={<Navigate to="/podcast/" replace />} />
         {/* Hidden admin login route (intentionally not linked in navigation) */}
         <Route path="/admin" element={<AdminPage />} />
         {/* Hidden invite-only route (intentionally not linked in navigation) */}
