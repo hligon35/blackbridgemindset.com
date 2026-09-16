@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import Layout from './Layout';
 import { useNavigate } from 'react-router-dom';
@@ -10,7 +9,7 @@ function App() {
   const navigate = useNavigate();
   const handlePlatformClick = (e) => {
     e.preventDefault();
-    navigate('/podcast#bbm-platforms');
+    navigate('/podcast/#bbm-platforms');
     setTimeout(() => {
       const el = document.getElementById('bbm-platforms');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -39,7 +38,7 @@ function App() {
           <strong>The Black Bridge Mindset: Where culture and entrepreneurship collide!</strong>
         </p>
         <div style={{textAlign: 'center', marginTop: '2rem'}}>
-          <a href="/bbm/podcast#bbm-platforms" className="bbm-scroll-btn" onClick={handlePlatformClick}>
+          <a href="/podcast/#bbm-platforms" className="bbm-scroll-btn" onClick={handlePlatformClick}>
             Listen on Your Favorite Platform
           </a>
         </div>
