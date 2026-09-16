@@ -40,6 +40,24 @@ function corsHeadersFor(origin, allowedOrigins) {
   return {};
 }
 
+function staticAssetResponse(response) {
+  const headers = new Headers(response.headers);
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  headers.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=(), payment=(), usb=()');
+  headers.set('X-Frame-Options', 'DENY');
+  headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  headers.set(
+    'Content-Security-Policy-Report-Only',
+    "default-src 'self'; script-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com data:; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.googleapis.com https://youtube.googleapis.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+  );
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function buildEmail({ name, email, subject, message, ip, ua, origin }) {
   const cleanSubject = subject ? subject : 'New contact form submission';
   const text =
@@ -86,7 +104,7 @@ async function rateLimit(env, { key, limit, windowSeconds }) {
   return { ok: true };
 }
 
-async function sendViaMailChannels(env, { replyToEmail, subject, text, html }) {
+async function sendContactEmail(env, { replyToEmail, subject, text, html }) {
   await sendEmail(env, {
     to: env.EMAIL_TO,
     fromEmail: env.EMAIL_FROM,
@@ -106,6 +124,15 @@ export default {
     // This early dispatch keeps the existing contact endpoint behavior intact.
     if (url.pathname.startsWith('/api/schedule/')) {
       return handleScheduleRequest(request, env);
+    }
+
+    // Cloudflare Worker Static Assets serves the React frontend from the same
+    // Worker. API requests continue through the handlers below.
+    if (!url.pathname.startsWith('/api/')) {
+      if (!env.ASSETS) {
+        return new Response('Static assets binding not configured', { status: 500 });
+      }
+      return staticAssetResponse(await env.ASSETS.fetch(request));
     }
 
     const origin = request.headers.get('Origin') || '';
@@ -176,7 +203,7 @@ export default {
     const emailContent = buildEmail({ name, email, subject, message, ip, ua, origin });
 
     try {
-      await sendViaMailChannels(env, {
+      await sendContactEmail(env, {
         replyToEmail: email,
         subject: emailContent.subject,
         text: emailContent.text,
