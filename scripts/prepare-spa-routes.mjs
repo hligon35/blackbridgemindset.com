@@ -80,10 +80,10 @@ for (const route of routes) {
   const canonicalPath = route.canonicalPath || routePath;
   const canonicalUrl = `https://blackbridgemindset.com/${canonicalPath}`;
   const routeHtml = template
-    .replace(/<title>[\\s\\S]*?<\\/title>/i, `<title>${escapeAttribute(route.title)}</title>`)
-    .replace(/<link rel="canonical" href="[^"]*"\\s*\\/>/i, `<link rel="canonical" href="${canonicalUrl}" />`)
+    .replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeAttribute(route.title)}</title>`)
+    .replace(/<link rel="canonical" href="[^"]*"\s*\/>/i, `<link rel="canonical" href="${canonicalUrl}" />`)
     .replace(/(<meta name="robots" content=")[^"]*(")/i, `$1${route.indexable === false ? 'noindex, nofollow' : 'index, follow'}$2`);
-  
+
   const withMeta = [
     ['name="description"', route.description],
     ['property="og:url"', canonicalUrl],
