@@ -81,4 +81,3 @@ Pushes to `main` run `.github/workflows/deploy.yml`, which builds the frontend a
 npm run build
 npx wrangler deploy --config worker/wrangler.toml
 ```
-
