@@ -19,10 +19,10 @@ The production GitHub Actions workflow uses the same command. It requires the re
 
 - Worker routes for `blackbridgemindset.com/*` and `www.blackbridgemindset.com/*`
 - Worker Static Assets from `../dist`, bound as `ASSETS`
-- Cloudflare Email Service binding `EMAIL`, restricted to `noreply@blackbridgemindset.com`
+- Resend API delivery using the `RESEND_API_KEY` secret
 - Contact delivery to `EMAIL_TO` from `EMAIL_FROM`
 
-Before deploying, onboard `blackbridgemindset.com` in Cloudflare Email Service and verify the sender domain/address. Publish the SPF, DKIM, and DMARC records Cloudflare provides.
+Before deploying, verify `blackbridgemindset.com` in Resend and publish the SPF, DKIM, and DMARC records Resend provides.
 
 Set local-only values in `worker/.dev.vars` using `worker/.dev.vars.example` as a template. Set production secrets with Wrangler:
 
@@ -31,15 +31,16 @@ npx wrangler secret put ADMIN_OTP_SECRET --config worker/wrangler.toml
 npx wrangler secret put ADMIN_SESSION_SECRET --config worker/wrangler.toml
 npx wrangler secret put ADMIN_ALLOWED_EMAILS --config worker/wrangler.toml
 npx wrangler secret put YOUTUBE_API_KEY --config worker/wrangler.toml
+npx wrangler secret put RESEND_API_KEY --config worker/wrangler.toml
 ```
 
 `EMAIL_TO`, `EMAIL_FROM`, `FROM_NAME`, `ALLOWED_ORIGINS`, and the schedule settings are non-secret Worker variables in `wrangler.toml`. D1 and KV are already Cloudflare-native and are retained.
 
 ## Email sending
 
-All application email now uses `env.EMAIL.send(...)`. Recipient lists are split into batches of 50 to respect Cloudflare Email Service's combined recipient limit, including newsletter/admin broadcasts.
+All application email now uses the Resend `/emails` API from the Worker. Recipient lists are split into batches of 50 to respect Resend's recipient limit, including newsletter/admin broadcasts.
 
-SendGrid and MailChannels are no longer used. Delete any old `SENDGRID_API_KEY` secret from the previous deployment after the Cloudflare Worker is live.
+SendGrid, MailChannels, and Cloudflare Email Service are no longer used. Delete any old provider secrets after the Resend-backed Worker is live.
 
 ## Scheduling
 
