@@ -99,4 +99,4 @@ for (const route of routes) {
   await writeFile(targetPath, withMeta);
 }
 
-console.log(`Prepared ${routes.length} GitHub Pages route entry points.`);
+console.log(`Prepared ${routes.length} static route entry points.`);
