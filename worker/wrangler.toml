@@ -2,14 +2,25 @@ name = "bbm-contact"
 main = "src/index.js"
 compatibility_date = "2026-02-01"
 
-# Route this Worker under your site (API only).
-# This Worker handles both:
-# - /api/contact*
-# - /api/schedule/*
+# Route the Worker under the entire site. The Worker serves the React static
+# assets and handles the contact/scheduling APIs.
 routes = [
-	{ pattern = "blackbridgemindset.com/api/*", zone_name = "blackbridgemindset.com" },
-	{ pattern = "www.blackbridgemindset.com/api/*", zone_name = "blackbridgemindset.com" }
+	{ pattern = "blackbridgemindset.com/*", zone_name = "blackbridgemindset.com" },
+	{ pattern = "www.blackbridgemindset.com/*", zone_name = "blackbridgemindset.com" }
 ]
+
+# Serve the Vite build from Cloudflare Worker Static Assets.
+[assets]
+directory = "../dist"
+binding = "ASSETS"
+not_found_handling = "404-page"
+run_worker_first = ["/*"]
+
+# Cloudflare Email Service native sending binding.
+[[send_email]]
+name = "EMAIL"
+remote = true
+allowed_sender_addresses = [ "noreply@blackbridgemindset.com" ]
 
 [vars]
 # Where contact emails get delivered
@@ -20,10 +31,8 @@ EMAIL_TO = "info@blackbridgemindset.com"
 EMAIL_FROM = "noreply@blackbridgemindset.com"
 FROM_NAME = "Black Bridge Mindset"
 
-# Email delivery
-# --------------
-# This worker sends using SendGrid when SENDGRID_API_KEY is configured as a secret.
-# It will fall back to MailChannels if no SendGrid key is present.
+# Email delivery uses the Cloudflare Email Service EMAIL binding above.
+# Onboard blackbridgemindset.com in Cloudflare Email Service before deploying.
 
 # YouTube (Episodes + Home video list)
 # -------------------------------
