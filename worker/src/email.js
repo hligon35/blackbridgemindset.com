@@ -38,82 +38,56 @@ function normalizeEmail(value) {
   return String(value || '').trim();
 }
 
-function makePayload({ to, fromEmail, fromName, subject, text, html, replyTo }) {
-  const recipients = toArray(to)
-    .map((x) => normalizeEmail(x))
-    .filter(Boolean)
-    .map((email) => ({ email }));
-
+function makeMessage({ to, fromEmail, fromName, subject, text, html, replyTo }) {
+  const recipients = toArray(to).map(normalizeEmail).filter(Boolean);
   if (recipients.length === 0) throw new Error('No recipients');
-
-  const personalizations = recipients.map((r) => ({ to: [r] }));
 
   const cleanSubject = assertString('subject', subject);
   const cleanText = String(text || '');
-  const themedHtml = String(html || '').trim() ? String(html) : defaultThemedHtml({ subject: cleanSubject, text: cleanText });
+  const themedHtml = String(html || '').trim()
+    ? String(html)
+    : defaultThemedHtml({ subject: cleanSubject, text: cleanText });
 
-  const payload = {
-    personalizations,
+  const message = {
+    to: recipients,
     from: {
       email: assertString('EMAIL_FROM', fromEmail),
       name: String(fromName || '').trim() || undefined,
     },
     subject: cleanSubject,
-    content: [{ type: 'text/plain', value: cleanText }],
+    text: cleanText,
+    html: themedHtml,
   };
 
-  payload.content.push({ type: 'text/html', value: themedHtml });
+  const cleanReplyTo = normalizeEmail(replyTo);
+  if (cleanReplyTo) message.replyTo = cleanReplyTo;
 
-  if (replyTo) {
-    payload.reply_to = { email: normalizeEmail(replyTo) };
-  }
-
-  return payload;
+  return message;
 }
 
-async function sendViaMailChannels(payload) {
-  const res = await fetch('https://api.mailchannels.net/tx/v1/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`MailChannels send failed (${res.status}). ${body}`);
-  }
+function chunk(values, size) {
+  const chunks = [];
+  for (let i = 0; i < values.length; i += size) chunks.push(values.slice(i, i + size));
+  return chunks;
 }
 
-async function sendViaSendGrid(env, payload) {
-  const apiKey = String(env.SENDGRID_API_KEY || '').trim();
-  if (!apiKey) throw new Error('SENDGRID_API_KEY not configured');
-
-  const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  // SendGrid returns 202 Accepted on success.
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`SendGrid send failed (${res.status}). ${body}`);
-  }
-}
-
-function hasSendGridKey(env) {
-  return Boolean(String(env.SENDGRID_API_KEY || '').trim());
-}
-
+/**
+ * Send through Cloudflare Email Service.
+ *
+ * The binding accepts at most 50 combined recipients per message, so
+ * newsletter/admin broadcasts are sent in bounded batches.
+ */
 export async function sendEmail(env, { to, fromEmail, fromName, subject, text, html, replyTo }) {
-  const payload = makePayload({ to, fromEmail, fromName, subject, text, html, replyTo });
-
-  if (hasSendGridKey(env)) {
-    return sendViaSendGrid(env, payload);
+  if (!env.EMAIL || typeof env.EMAIL.send !== 'function') {
+    throw new Error('Cloudflare Email Service binding EMAIL not configured');
   }
 
-  return sendViaMailChannels(payload);
+  const message = makeMessage({ to, fromEmail, fromName, subject, text, html, replyTo });
+  const recipients = message.to;
+
+  for (const recipientBatch of chunk(recipients, 50)) {
+    await env.EMAIL.send({ ...message, to: recipientBatch });
+  }
+
+  return { ok: true };
 }
