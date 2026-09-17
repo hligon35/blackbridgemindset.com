@@ -105,6 +105,18 @@ export async function adminLogout() {
   return postJson('/api/schedule/admin/auth/logout', {});
 }
 
+export async function adminGetSubmissions({ status = 'all' } = {}) {
+  return postJson('/api/schedule/admin/submissions/list', { status });
+}
+
+export async function adminUpdateSubmission({ id, status }) {
+  return postJson('/api/schedule/admin/submissions/update', { id, status });
+}
+
+export async function adminGetActivity() {
+  return postJson('/api/schedule/admin/activity/list', {});
+}
+
 export async function adminNewsletterGetSubscribers() {
   return postJson('/api/schedule/admin/newsletter/subscribers/get', {});
 }
