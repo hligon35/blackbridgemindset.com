@@ -1,8 +1,9 @@
 import { verifyAdminSession } from './auth';
 import { sendEmail } from '../../email';
-import { wrapBbmEmailHtml, bbmLinkStyle, renderBbmButtonHtml, renderBbmMessageBoxHtml } from '../../emailTheme';
+import { wrapBbmEmailHtml, bbmLinkStyle, renderBbmButtonHtml } from '../../emailTheme';
 import { listActivity, listSubmissions, updateSubmissionStatus } from './inbox';
 import { recordActivity } from '../../shared/submissions';
+import { buildNewsletterEmail, listNewsletterCampaigns, saveNewsletterCampaign } from './newsletterCampaigns';
 
 function jsonResponse(body, { status = 200, headers = {} } = {}) {
   return new Response(JSON.stringify(body), {
@@ -169,7 +170,6 @@ async function setNewsletterSubscribers(env, subscribers) {
 
   const list = dedupeEmails(subscribers).filter(validateEmail);
 
-  if (list.length === 0) return { ok: false, status: 400, error: 'No valid subscribers provided' };
   if (list.length > 5000) return { ok: false, status: 400, error: 'Too many subscribers (max 5000)' };
 
   try {
@@ -181,26 +181,38 @@ async function setNewsletterSubscribers(env, subscribers) {
   }
 }
 
-function buildNewsletterEmail({ subject, message }) {
-  const cleanSubject = String(subject || '').trim();
-  const cleanMessage = String(message || '').trim();
+async function deleteNewsletterSubscribers(env, emails) {
+  if (!env.SCHEDULE_CONFIG) return { ok: false, status: 501, error: 'Newsletter storage not configured' };
 
-  const text = cleanMessage;
+  const requested = new Set(dedupeEmails(emails).filter(validateEmail));
+  if (requested.size === 0) return { ok: false, status: 400, error: 'Select at least one subscriber to delete' };
 
-  const messageBox = renderBbmMessageBoxHtml(
-    `<div style="margin:0; white-space:pre-wrap; color:#e0e0e0;">${escapeHtml(cleanMessage)}</div>`
-  );
+  const current = await getNewsletterSubscribers(env);
+  if (!current.ok) return current;
 
-  const html = wrapBbmEmailHtml({
-    title: cleanSubject,
-    preheader: 'New message from Black Bridge Mindset',
-    contentHtml: `
-      ${messageBox}
-      <p style="margin:14px 0 0 0;">— Mike</p>
-    `,
-  });
+  const subscribers = current.subscribers.filter((email) => !requested.has(email));
+  try {
+    await env.SCHEDULE_CONFIG.put('newsletter:subscribers', JSON.stringify(subscribers));
 
-  return { subject: cleanSubject, text, html };
+    for (const [key, defaultValue] of [
+      ['newsletter:subscriberLabels', {}],
+      ['newsletter:subscriberNames', {}],
+    ]) {
+      try {
+        const value = await env.SCHEDULE_CONFIG.get(key, { type: 'json' });
+        const map = value && typeof value === 'object' ? { ...value } : defaultValue;
+        for (const email of requested) delete map[email];
+        await env.SCHEDULE_CONFIG.put(key, JSON.stringify(map));
+      } catch (error) {
+        console.warn(`newsletter metadata cleanup failed for ${key}`, error);
+      }
+    }
+
+    return { ok: true, status: 200, subscribers, deleted: current.subscribers.length - subscribers.length };
+  } catch (e) {
+    console.error('newsletter subscribers delete failed', e);
+    return { ok: false, status: 500, error: 'Failed to delete subscribers' };
+  }
 }
 
 
@@ -583,6 +595,13 @@ export async function handleAdmin(request, env, corsHeaders) {
     const res = await setNewsletterSubscribers(env, body?.subscribers);
     if (!res.ok) return jsonResponse({ ok: false, error: res.error }, { status: res.status, headers: corsHeaders });
 
+    await recordActivity(env, {
+      action: 'newsletter.subscribers.saved',
+      entityType: 'newsletter_subscribers',
+      actorEmail,
+      detail: { count: res.subscribers.length },
+    });
+
     // Best-effort: keep a labels map aligned to the saved list.
     try {
       const labelsRes = await getNewsletterSubscriberLabels(env);
@@ -597,6 +616,38 @@ export async function handleAdmin(request, env, corsHeaders) {
       console.warn('newsletter labels sync failed', e);
       return jsonResponse({ ok: true, subscribers: res.subscribers }, { status: 200, headers: corsHeaders });
     }
+  }
+
+  if (url.pathname === '/api/schedule/admin/newsletter/subscribers/delete') {
+    const res = await deleteNewsletterSubscribers(env, body?.subscribers);
+    if (!res.ok) return jsonResponse({ ok: false, error: res.error }, { status: res.status, headers: corsHeaders });
+
+    await recordActivity(env, {
+      action: 'newsletter.subscribers.deleted',
+      entityType: 'newsletter_subscribers',
+      actorEmail,
+      detail: { deleted: res.deleted, remaining: res.subscribers.length },
+    });
+    return jsonResponse({ ok: true, subscribers: res.subscribers, deleted: res.deleted }, { status: 200, headers: corsHeaders });
+  }
+
+  if (url.pathname === '/api/schedule/admin/newsletter/campaigns/list') {
+    const res = await listNewsletterCampaigns(env);
+    if (!res.ok) return jsonResponse({ ok: false, error: res.error }, { status: res.status, headers: corsHeaders });
+    return jsonResponse({ ok: true, campaigns: res.campaigns }, { status: 200, headers: corsHeaders });
+  }
+
+  if (url.pathname === '/api/schedule/admin/newsletter/campaigns/save') {
+    const res = await saveNewsletterCampaign(env, {
+      id: body?.id,
+      subject: body?.subject,
+      content: body?.content,
+      status: body?.status,
+      scheduledAt: body?.scheduledAt,
+      actorEmail,
+    });
+    if (!res.ok) return jsonResponse({ ok: false, error: res.error }, { status: res.status, headers: corsHeaders });
+    return jsonResponse({ ok: true, campaign: res.campaign }, { status: 200, headers: corsHeaders });
   }
 
   if (url.pathname === '/api/schedule/admin/newsletter/send') {
@@ -646,7 +697,12 @@ export async function handleAdmin(request, env, corsHeaders) {
       return jsonResponse({ ok: false, error: 'Too many recipients in one request (max 200)' }, { status: 400, headers: corsHeaders });
     }
 
-    const { subject, text, html } = buildNewsletterEmail({ subject: rawSubject, message: rawMessage });
+    const campaignId = String(body?.campaignId || '').trim();
+    const { subject, text, html, content } = buildNewsletterEmail({
+      subject: rawSubject,
+      content: body?.content,
+      message: rawMessage,
+    });
 
     try {
       await sendEmail(env, {
@@ -657,14 +713,28 @@ export async function handleAdmin(request, env, corsHeaders) {
         text,
         html,
       });
+      if (campaignId && env.SCHEDULE_DB) {
+        await env.SCHEDULE_DB
+          .prepare("UPDATE newsletter_campaigns SET status = 'sent', sentAt = ?1, recipientCount = ?2, updatedAt = ?1, errorMessage = NULL WHERE id = ?3")
+          .bind(Date.now(), recipients.length, campaignId)
+          .run();
+      }
       await recordActivity(env, {
         action: 'newsletter.sent',
         entityType: 'newsletter',
+        entityId: campaignId,
         actorEmail,
-        detail: { recipients: recipients.length, subject: rawSubject },
+        detail: { recipients: recipients.length, subject: rawSubject, preheader: content.preheader },
       });
       return jsonResponse({ ok: true, recipients: recipients.length }, { status: 200, headers: corsHeaders });
     } catch (e) {
+      await recordActivity(env, {
+        action: 'newsletter.send.failed',
+        entityType: 'newsletter',
+        entityId: campaignId,
+        actorEmail,
+        detail: { recipients: recipients.length, subject: rawSubject, error: e instanceof Error ? e.message : 'Failed to send email' },
+      });
       return jsonResponse(
         { ok: false, error: e instanceof Error ? e.message : 'Failed to send email' },
         { status: 502, headers: corsHeaders }
