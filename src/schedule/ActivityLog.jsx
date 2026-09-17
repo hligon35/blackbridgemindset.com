@@ -59,7 +59,9 @@ export default function ActivityLog() {
         </button>
       </div>
 
-      {state.status === 'error' ? <div className="admin-alert admin-alert-error">{state.error}</div> : null}
+      <div className={`admin-alert admin-alert-${state.status === 'error' ? 'error' : state.status === 'loading' ? 'neutral' : 'success'}`} role="status" aria-live="polite">
+        {state.status === 'error' ? state.error : state.status === 'loading' ? 'Loading activity…' : activity.length ? `${activity.length} recent admin activities.` : 'No admin activity recorded yet.'}
+      </div>
 
       {state.status === 'ready' && activity.length === 0 ? (
         <div className="admin-empty-state">
@@ -79,6 +81,7 @@ export default function ActivityLog() {
                   <time dateTime={new Date(Number(item.createdAt)).toISOString()}>{formatDate(item.createdAt)}</time>
                 </div>
                 <span className="admin-activity-entity">{item.entityType}{item.entityId ? ` · ${item.entityId}` : ''}</span>
+                {item.actorEmail ? <span className="admin-activity-actor">Admin: {item.actorEmail}</span> : null}
                 {detailText(item.detail) ? <span className="admin-activity-detail">{detailText(item.detail)}</span> : null}
               </div>
             </div>
