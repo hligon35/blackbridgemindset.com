@@ -1,5 +1,5 @@
 import { sendEmail } from '../../email';
-import { wrapBbmEmailHtml, renderBbmMessageBoxHtml } from '../../emailTheme';
+import { wrapBbmEmailHtml, renderBbmButtonHtml, renderBbmMessageBoxHtml } from '../../emailTheme';
 import { escapeHtml } from '../../shared/sanitize';
 import { recordActivity } from '../../shared/submissions';
 
@@ -66,9 +66,9 @@ export function normalizeNewsletterContent(input = {}) {
 
 function renderSectionHtml(section) {
   return `
-    <div style="margin:0 0 14px 0; padding:14px 16px; border:1px solid #33465c; border-radius:12px; background:#172638;">
-      ${section.title ? `<h3 style="margin:0 0 7px 0; color:#f7c873; font-size:16px;">${escapeHtml(section.title)}</h3>` : ''}
-      ${section.body ? `<p style="margin:0; color:#e5edf5; white-space:pre-wrap;">${escapeHtml(section.body)}</p>` : ''}
+    <div style="margin:14px 0 0 0; padding:16px 18px; border:1px solid #465360; border-left:3px solid #f7c873; border-radius:12px; background:#1c2731;">
+      ${section.title ? `<h3 style="margin:0 0 7px 0; color:#f7c873; font-family:Georgia, 'Times New Roman', serif; font-size:17px; line-height:1.25;">${escapeHtml(section.title)}</h3>` : ''}
+      ${section.body ? `<p style="margin:0; color:#e0e4e8; white-space:pre-wrap;">${escapeHtml(section.body)}</p>` : ''}
     </div>
   `;
 }
@@ -89,8 +89,8 @@ export function buildNewsletterEmail({ subject, content, message = '' }) {
   const contentHtml = `
     ${renderBbmMessageBoxHtml(`<p style="margin:0; color:#e5edf5; white-space:pre-wrap;">${escapeHtml(normalized.intro)}</p>`)}
     ${normalized.sections.map(renderSectionHtml).join('')}
-    ${normalized.ctaLabel && normalized.ctaUrl ? `<p style="margin:18px 0 0 0;"><a href="${escapeHtml(normalized.ctaUrl)}" style="display:inline-block; padding:11px 16px; border-radius:999px; background:#f7c873; color:#17202b; font-weight:700; text-decoration:none;">${escapeHtml(normalized.ctaLabel)}</a></p>` : ''}
-    <p style="margin:18px 0 0 0; white-space:pre-wrap;">${escapeHtml(normalized.closing)}</p>
+    ${normalized.ctaLabel && normalized.ctaUrl ? `<div style="margin:22px 0 0 0;">${renderBbmButtonHtml({ hrefEscaped: escapeHtml(normalized.ctaUrl), labelEscaped: escapeHtml(normalized.ctaLabel) })}</div>` : ''}
+    <p style="margin:22px 0 0 0; color:#d5dbe0; white-space:pre-wrap;">${escapeHtml(normalized.closing)}</p>
   `;
 
   const html = wrapBbmEmailHtml({
