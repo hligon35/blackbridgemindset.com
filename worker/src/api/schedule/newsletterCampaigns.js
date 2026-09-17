@@ -206,6 +206,27 @@ export async function saveNewsletterCampaign(env, { id, subject, content, status
   }
 }
 
+export async function deleteNewsletterCampaign(env, { id, actorEmail = '' }) {
+  if (!env.SCHEDULE_DB) return { ok: false, status: 501, error: 'Newsletter database not configured' };
+  const campaignId = String(id || '').trim();
+  if (!campaignId) return { ok: false, status: 400, error: 'Newsletter ID is required' };
+
+  try {
+    const result = await env.SCHEDULE_DB.prepare('DELETE FROM newsletter_campaigns WHERE id = ?1').bind(campaignId).run();
+    if (!result.meta || result.meta.changes === 0) return { ok: false, status: 404, error: 'Newsletter not found' };
+    await recordActivity(env, {
+      action: 'newsletter.deleted',
+      entityType: 'newsletter',
+      entityId: campaignId,
+      actorEmail,
+    });
+    return { ok: true, status: 200 };
+  } catch (error) {
+    console.error('Failed to delete newsletter campaign', error);
+    return { ok: false, status: 500, error: 'Failed to delete newsletter' };
+  }
+}
+
 async function getStoredSubscribers(env) {
   if (!env.SCHEDULE_CONFIG) return [];
   try {
@@ -294,4 +315,3 @@ export async function processScheduledNewsletters(env) {
 
   return { ok: true, sent };
 }
-
