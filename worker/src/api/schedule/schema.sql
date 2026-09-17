@@ -54,3 +54,20 @@ CREATE TABLE IF NOT EXISTS activity_log (
 
 CREATE INDEX IF NOT EXISTS idx_activity_log_createdAt ON activity_log(createdAt);
 CREATE INDEX IF NOT EXISTS idx_activity_log_action ON activity_log(action);
+
+CREATE TABLE IF NOT EXISTS newsletter_campaigns (
+  id TEXT PRIMARY KEY,
+  status TEXT NOT NULL DEFAULT 'draft',
+  subject TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '{}',
+  scheduledAt INTEGER,
+  sentAt INTEGER,
+  recipientCount INTEGER NOT NULL DEFAULT 0,
+  createdBy TEXT,
+  createdAt INTEGER NOT NULL,
+  updatedAt INTEGER NOT NULL,
+  errorMessage TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_newsletter_campaigns_status_scheduledAt ON newsletter_campaigns(status, scheduledAt);
+CREATE INDEX IF NOT EXISTS idx_newsletter_campaigns_updatedAt ON newsletter_campaigns(updatedAt);
