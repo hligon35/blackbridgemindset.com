@@ -136,19 +136,32 @@ function base64UrlToUint8Array(input) {
   return bytes;
 }
 
+function accessTeamOrigin(env) {
+  const raw = String(env.CF_ACCESS_TEAM_DOMAIN || '').trim().replace(/\/+$/, '');
+  if (!raw) return '';
+  return raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+}
+
+function accessConfig(env) {
+  return {
+    teamOrigin: accessTeamOrigin(env),
+    audience: String(env.CF_ACCESS_AUD || '').trim(),
+  };
+}
+
 let accessJwksCache = null; // { teamDomain, keys, fetchedAtMs }
 const ACCESS_JWKS_TTL_MS = 60 * 60 * 1000;
 
-async function getAccessJwks(teamDomain) {
-  if (accessJwksCache && accessJwksCache.teamDomain === teamDomain && Date.now() - accessJwksCache.fetchedAtMs < ACCESS_JWKS_TTL_MS) {
+async function getAccessJwks(teamOrigin) {
+  if (accessJwksCache && accessJwksCache.teamDomain === teamOrigin && Date.now() - accessJwksCache.fetchedAtMs < ACCESS_JWKS_TTL_MS) {
     return accessJwksCache.keys;
   }
 
-  const res = await fetch(`https://${teamDomain}/cdn-cgi/access/certs`);
+  const res = await fetch(`${teamOrigin}/cdn-cgi/access/certs`, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error('Failed to fetch Access certs');
   const data = await res.json();
   const keys = Array.isArray(data?.keys) ? data.keys : [];
-  accessJwksCache = { teamDomain, keys, fetchedAtMs: Date.now() };
+  accessJwksCache = { teamDomain: teamOrigin, keys, fetchedAtMs: Date.now() };
   return keys;
 }
 
@@ -156,9 +169,8 @@ async function getAccessJwks(teamDomain) {
 // authenticated email, so a successful Access login (e.g. Google SSO) can be
 // trusted directly without a separate OTP step.
 async function verifyAccessJwt(request, env) {
-  const teamDomain = String(env.CF_ACCESS_TEAM_DOMAIN || '').trim();
-  const aud = String(env.CF_ACCESS_AUD || '').trim();
-  if (!teamDomain || !aud) return null;
+  const { teamOrigin, audience } = accessConfig(env);
+  if (!teamOrigin || !audience) return null;
 
   const token = request.headers.get('Cf-Access-Jwt-Assertion') || getCookie(request, 'CF_Authorization');
   if (!token) return null;
@@ -180,16 +192,16 @@ async function verifyAccessJwt(request, env) {
   if (header.alg !== 'RS256' || !header.kid) return null;
 
   const audClaim = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-  if (!audClaim.includes(aud)) return null;
+  if (!audClaim.includes(audience)) return null;
 
   const exp = Number(payload.exp);
   if (!Number.isFinite(exp) || Date.now() >= exp * 1000) return null;
 
-  if (payload.iss && !String(payload.iss).includes(teamDomain)) return null;
+  if (payload.iss && String(payload.iss).replace(/\/+$/, '') !== teamOrigin) return null;
 
   let keys;
   try {
-    keys = await getAccessJwks(teamDomain);
+    keys = await getAccessJwks(teamOrigin);
   } catch {
     return null;
   }
@@ -314,6 +326,14 @@ export async function handleAdminAuth(request, env, corsHeaders) {
     }
 
     return jsonResponse({ ok: true, email: session.email }, { status: 200, headers: corsHeaders });
+  }
+
+  if (url.pathname === '/api/schedule/admin/auth/config') {
+    const config = accessConfig(env);
+    return jsonResponse(
+      { ok: true, googleAuthEnabled: Boolean(config.teamOrigin && config.audience) },
+      { status: 200, headers: corsHeaders }
+    );
   }
 
   if (url.pathname === '/api/schedule/admin/auth/logout') {
