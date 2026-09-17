@@ -34,6 +34,12 @@ npx wrangler secret put YOUTUBE_API_KEY --config worker/wrangler.toml
 npx wrangler secret put RESEND_API_KEY --config worker/wrangler.toml
 ```
 
+Initialize the submissions inbox and activity log in the existing D1 database:
+
+```bash
+npx wrangler d1 execute bb_guest_schedule --remote --file=./worker/src/api/schedule/migration-add-admin-inbox.sql
+```
+
 `EMAIL_TO`, `EMAIL_FROM`, `FROM_NAME`, `ALLOWED_ORIGINS`, and the schedule settings are non-secret Worker variables in `wrangler.toml`. D1 and KV are already Cloudflare-native and are retained.
 
 ## Email sending
