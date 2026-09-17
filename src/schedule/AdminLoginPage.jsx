@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { adminAuthStart, adminAuthVerify, adminGetAuthConfig, adminGetSession } from './utils/adminApi';
 import AdminShell from './AdminShell';
+import { useAdminToast } from './components/AdminToast';
 
 function looksLikePhone(value) {
   const v = String(value || '').trim();
@@ -34,9 +35,8 @@ export default function AdminLoginPage({ onSuccess }) {
 
   const [step, setStep] = useState('email'); // email | code
   const [status, setStatus] = useState('idle'); // idle | loading
-  const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
   const [googleAuthEnabled, setGoogleAuthEnabled] = useState(false);
+  const { notify, closeToast } = useAdminToast();
 
   useEffect(() => {
     let cancelled = false;
@@ -71,17 +71,16 @@ export default function AdminLoginPage({ onSuccess }) {
 
   async function handleSendCode(e) {
     e.preventDefault();
-    setError('');
-    setInfo('');
+    closeToast();
 
     const clean = email.trim();
     if (looksLikePhone(clean)) {
-      setError('Email only. Please enter your email address.');
+      notify({ tone: 'error', message: 'Email only. Please enter your email address.' });
       return;
     }
 
     if (!isValidEmail(clean)) {
-      setError('Please enter a valid email address.');
+      notify({ tone: 'error', message: 'Please enter a valid email address.' });
       return;
     }
 
@@ -90,38 +89,37 @@ export default function AdminLoginPage({ onSuccess }) {
     setStatus('idle');
 
     if (!res.ok) {
-      setError(res.error || 'Failed to send code.');
+      notify({ tone: 'error', message: res.error || 'Failed to send code.' });
       return;
     }
 
     setStep('code');
     if (import.meta.env.DEV && res.data?.devCode) {
-      setInfo(`DEV MODE: Your code is ${res.data.devCode}`);
+      notify({ message: `DEV MODE: Your code is ${res.data.devCode}` });
     } else {
-      setInfo('If your email is allowed, a code was sent.');
+      notify({ message: 'If your email is allowed, a code was sent.' });
     }
   }
 
   async function handleVerifyCode(e) {
     e.preventDefault();
-    setError('');
-    setInfo('');
+    closeToast();
 
     const cleanEmail = email.trim();
     const cleanCode = code.trim();
 
     if (looksLikePhone(cleanEmail)) {
-      setError('Email only. Please enter your email address.');
+      notify({ tone: 'error', message: 'Email only. Please enter your email address.' });
       return;
     }
 
     if (!isValidEmail(cleanEmail)) {
-      setError('Please enter a valid email address.');
+      notify({ tone: 'error', message: 'Please enter a valid email address.' });
       return;
     }
 
     if (!cleanCode || cleanCode.length < 4) {
-      setError('Please enter your code.');
+      notify({ tone: 'error', message: 'Please enter your code.' });
       return;
     }
 
@@ -130,7 +128,7 @@ export default function AdminLoginPage({ onSuccess }) {
     setStatus('idle');
 
     if (!res.ok) {
-      setError(res.error || 'Invalid code.');
+      notify({ tone: 'error', message: res.error || 'Invalid code.' });
       return;
     }
 
@@ -145,9 +143,10 @@ export default function AdminLoginPage({ onSuccess }) {
       return;
     }
 
-    setError(
-      'Login succeeded, but the session was not established. Make sure Vite and the Worker use the same hostname (localhost vs 127.0.0.1), then try again.'
-    );
+    notify({
+      tone: 'error',
+      message: 'Login succeeded, but the session was not established. Make sure Vite and the Worker use the same hostname (localhost vs 127.0.0.1), then try again.',
+    });
   }
 
   return (
@@ -222,9 +221,6 @@ export default function AdminLoginPage({ onSuccess }) {
             </label>
           )}
 
-          {error ? <div className="admin-alert admin-alert-error">{error}</div> : null}
-          {info ? <div className="admin-alert admin-alert-success">{info}</div> : null}
-
           <button className="admin-primary-button admin-submit-button" type="submit" disabled={status === 'loading'}>
             {status === 'loading' ? 'Working…' : step === 'email' ? 'Send code' : 'Verify code'}
           </button>
@@ -236,8 +232,7 @@ export default function AdminLoginPage({ onSuccess }) {
               onClick={() => {
                 setStep('email');
                 setCode('');
-                setError('');
-                setInfo('');
+                closeToast();
               }}
               disabled={status === 'loading'}
               style={{ marginTop: 10 }}
