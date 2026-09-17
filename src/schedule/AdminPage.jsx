@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 
-import Layout from '../Layout';
-
 import AdminLoginPage from './AdminLoginPage';
+import AdminShell from './AdminShell';
 import ScheduleAdminPage from './ScheduleAdminPage';
 import { adminGetSession } from './utils/adminApi';
 
@@ -46,14 +45,11 @@ export default function AdminPage() {
 
   if (sessionState.status === 'loading') {
     return (
-      <Layout>
-        <section className="bbm-section">
-          <h2>Admin</h2>
-          <p className="bbm-contact-text" style={{ textAlign: 'center' }}>
-            Checking session…
-          </p>
+      <AdminShell>
+        <section className="admin-panel admin-loading-panel">
+          <p>Checking session…</p>
         </section>
-      </Layout>
+      </AdminShell>
     );
   }
 
