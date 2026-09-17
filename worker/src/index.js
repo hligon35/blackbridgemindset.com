@@ -3,6 +3,7 @@ import { sendEmail } from './email';
 import { wrapBbmEmailHtml, renderBbmMessageBoxHtml, bbmMutedTextStyle } from './emailTheme';
 import { jsonResponse, securityHeaders } from './shared/http';
 import { escapeHtml } from './shared/sanitize';
+import { createContactSubmission, recordActivity, updateContactSubmissionDelivery } from './shared/submissions';
 
 function parseAllowedOrigins(env) {
   const raw = String(env.ALLOWED_ORIGINS || '').trim();
@@ -201,6 +202,25 @@ export default {
     }
 
     const emailContent = buildEmail({ name, email, subject, message, ip, ua, origin });
+    const submissionId = await createContactSubmission(env, {
+      name,
+      email,
+      subject,
+      message,
+      ip,
+      origin,
+      userAgent: ua,
+      createdAt: Date.now(),
+    });
+
+    if (submissionId) {
+      await recordActivity(env, {
+        action: 'submission.created',
+        entityType: 'submission',
+        entityId: submissionId,
+        detail: { subject: subject || 'New contact form submission' },
+      });
+    }
 
     try {
       await sendContactEmail(env, {
@@ -209,8 +229,10 @@ export default {
         text: emailContent.text,
         html: emailContent.html,
       });
+      if (submissionId) await updateContactSubmissionDelivery(env, submissionId, 'sent');
       return jsonResponse({ ok: true }, { status: 200, headers: cors });
     } catch (e) {
+      if (submissionId) await updateContactSubmissionDelivery(env, submissionId, 'failed');
       return jsonResponse(
         { ok: false, error: e instanceof Error ? e.message : 'Failed to send email.' },
         { status: 502, headers: cors }
