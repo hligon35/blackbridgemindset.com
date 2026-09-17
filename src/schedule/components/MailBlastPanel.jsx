@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { asset } from '../../utils/asset';
 import {
   adminNewsletterDeleteSubscribers,
+  adminNewsletterDeleteCampaign,
   adminNewsletterGetCampaigns,
   adminNewsletterGetSubscribers,
   adminNewsletterSaveCampaign,
@@ -10,6 +11,7 @@ import {
   adminNewsletterSetSubscribers,
   getScheduleApiBase,
 } from '../utils/adminApi';
+import { useAdminToast } from './AdminToast';
 
 const DEFAULT_CONTENT = {
   preheader: 'Stories, conversations, and mindset shifts from Black Bridge Mindset.',
@@ -37,12 +39,6 @@ function parseEmailList(text) {
   return [...new Set(raw)];
 }
 
-function StatusBox({ state, fallback }) {
-  const tone = state?.error ? 'error' : state?.status === 'loading' ? 'neutral' : 'success';
-  const message = state?.status === 'loading' ? 'Working…' : state?.error || state?.info || fallback;
-  return <div className={`admin-alert admin-alert-${tone}`} role="status" aria-live="polite">{message}</div>;
-}
-
 function formatCampaignDate(value) {
   const timestamp = Number(value);
   if (!timestamp) return '';
@@ -58,6 +54,7 @@ export default function MailBlastPanel({ sessionEmail }) {
   const [subscribers, setSubscribers] = useState([]);
   const [labels, setLabels] = useState({});
   const [selected, setSelected] = useState(new Set());
+  const savedSubscribersRef = useRef([]);
   const [addEmail, setAddEmail] = useState('');
   const [subscribersState, setSubscribersState] = useState({ status: 'loading', error: '', info: '' });
 
@@ -70,16 +67,19 @@ export default function MailBlastPanel({ sessionEmail }) {
   const [testEmail, setTestEmail] = useState(sessionEmail || '');
   const [sendState, setSendState] = useState({ status: 'ready', error: '', info: '' });
   const [progress, setProgress] = useState({ sent: 0, total: 0 });
+  const { notify } = useAdminToast();
 
   async function loadSubscribers() {
     setSubscribersState({ status: 'loading', error: '', info: '' });
     const res = await adminNewsletterGetSubscribers();
     if (!res.ok) {
       setSubscribersState({ status: 'error', error: res.error || 'Failed to load subscribers.', info: '' });
+      notify({ tone: 'error', message: res.error || 'Failed to load subscribers.' });
       return;
     }
     const list = Array.isArray(res.data?.subscribers) ? res.data.subscribers : [];
     setSubscribers(list);
+    savedSubscribersRef.current = list;
     setLabels(res.data?.labels && typeof res.data.labels === 'object' ? res.data.labels : {});
     setSelected(new Set(list));
     setSubscribersState({ status: 'ready', error: '', info: list.length ? `Loaded ${list.length} subscribers.` : 'No subscribers saved yet.' });
@@ -89,6 +89,7 @@ export default function MailBlastPanel({ sessionEmail }) {
     const res = await adminNewsletterGetCampaigns();
     if (!res.ok) {
       setCampaignState({ status: 'error', error: res.error || 'Failed to load newsletters.', info: '' });
+      notify({ tone: 'error', message: res.error || 'Failed to load newsletters.' });
       return;
     }
     setCampaigns(Array.isArray(res.data?.campaigns) ? res.data.campaigns : []);
@@ -97,14 +98,19 @@ export default function MailBlastPanel({ sessionEmail }) {
   useEffect(() => {
     loadSubscribers();
     loadCampaigns();
+    // The initial data load intentionally runs once when the panel mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleAddSubscriber() {
     const list = parseEmailList(addEmail);
     if (list.length === 0) {
       setSubscribersState({ status: 'error', error: 'Enter a valid email address to add.', info: '' });
+      notify({ tone: 'error', message: 'Enter a valid email address to add.' });
       return;
     }
+    const previousSubscribers = subscribers;
+    const previousLabels = labels;
     setSubscribers((prev) => {
       const merged = [...prev];
       const seen = new Set(prev);
@@ -119,40 +125,77 @@ export default function MailBlastPanel({ sessionEmail }) {
     });
     setAddEmail('');
     setSubscribersState({ status: 'ready', error: '', info: 'Added locally. Save the list to persist it.' });
+    notify({
+      message: `${list.length} subscriber${list.length === 1 ? '' : 's'} added locally.`,
+      onUndo: () => {
+        setSubscribers(previousSubscribers);
+        setLabels(previousLabels);
+        setSelected(new Set(previousSubscribers));
+      },
+    });
   }
 
   async function handleSaveSubscribers(event) {
     event.preventDefault();
+    const previousSubscribers = savedSubscribersRef.current;
     setSubscribersState({ status: 'loading', error: '', info: '' });
     const res = await adminNewsletterSetSubscribers({ subscribers });
     if (!res.ok) {
       setSubscribersState({ status: 'error', error: res.error || 'Failed to save subscribers.', info: '' });
+      notify({ tone: 'error', message: res.error || 'Failed to save subscribers.' });
       return;
     }
     const saved = Array.isArray(res.data?.subscribers) ? res.data.subscribers : subscribers;
     setSubscribers(saved);
+    savedSubscribersRef.current = saved;
     setSelected(new Set(saved));
     setLabels(res.data?.labels && typeof res.data.labels === 'object' ? res.data.labels : labels);
     setSubscribersState({ status: 'ready', error: '', info: `Saved ${saved.length} subscribers.` });
+    notify({
+      message: `Saved ${saved.length} subscriber${saved.length === 1 ? '' : 's'}.`,
+      onUndo: async () => {
+        const restore = await adminNewsletterSetSubscribers({ subscribers: previousSubscribers });
+        if (!restore.ok) throw new Error(restore.error || 'Unable to undo subscriber list save.');
+        setSubscribers(previousSubscribers);
+        savedSubscribersRef.current = previousSubscribers;
+        setSelected(new Set(previousSubscribers));
+      },
+    });
   }
 
   async function handleDeleteSelected() {
     const toDelete = subscribers.filter((email) => selected.has(email));
     if (toDelete.length === 0) {
       setSubscribersState({ status: 'error', error: 'Select at least one subscriber to delete.', info: '' });
+      notify({ tone: 'error', message: 'Select at least one subscriber to delete.' });
       return;
     }
     if (!window.confirm(`Delete ${toDelete.length} selected subscriber${toDelete.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    const previousSubscribers = subscribers;
+    const previousLabels = labels;
     setSubscribersState({ status: 'loading', error: '', info: '' });
     const res = await adminNewsletterDeleteSubscribers({ subscribers: toDelete });
     if (!res.ok) {
       setSubscribersState({ status: 'error', error: res.error || 'Failed to delete subscribers.', info: '' });
+      notify({ tone: 'error', message: res.error || 'Failed to delete subscribers.' });
       return;
     }
     const remaining = Array.isArray(res.data?.subscribers) ? res.data.subscribers : subscribers.filter((email) => !selected.has(email));
     setSubscribers(remaining);
+    savedSubscribersRef.current = remaining;
     setSelected(new Set());
     setSubscribersState({ status: 'ready', error: '', info: `Deleted ${res.data?.deleted || toDelete.length} subscriber${toDelete.length === 1 ? '' : 's'}.` });
+    notify({
+      message: `Deleted ${res.data?.deleted || toDelete.length} subscriber${toDelete.length === 1 ? '' : 's'}.`,
+      onUndo: async () => {
+        const restore = await adminNewsletterSetSubscribers({ subscribers: previousSubscribers });
+        if (!restore.ok) throw new Error(restore.error || 'Unable to undo subscriber deletion.');
+        setSubscribers(previousSubscribers);
+        savedSubscribersRef.current = previousSubscribers;
+        setLabels(previousLabels);
+        setSelected(new Set(previousSubscribers));
+      },
+    });
   }
 
   function updateContent(field, value) {
@@ -180,20 +223,53 @@ export default function MailBlastPanel({ sessionEmail }) {
     setContent({ ...cloneDefaultContent(), ...(campaign.content || {}), sections: campaign.content?.sections || [] });
     setScheduledAtInput(campaign.scheduledAt ? new Date(campaign.scheduledAt).toISOString().slice(0, 16) : '');
     setCampaignState({ status: 'ready', error: '', info: `Loaded ${campaignStatusLabel(campaign.status).toLowerCase()} newsletter.` });
+    notify({ message: `Loaded ${campaignStatusLabel(campaign.status).toLowerCase()} newsletter.` });
   }
 
   async function saveCampaign(status) {
+    const previousCampaign = campaigns.find((campaign) => campaign.id === campaignId);
+    const previousId = campaignId;
+    const previousSubject = subject;
+    const previousContent = content;
+    const previousScheduledAt = scheduledAtInput;
     setCampaignState({ status: 'loading', error: '', info: '' });
     const scheduledAt = status === 'scheduled' ? Date.parse(scheduledAtInput) : null;
     const res = await adminNewsletterSaveCampaign({ id: campaignId, subject, content, status, scheduledAt });
     if (!res.ok) {
       setCampaignState({ status: 'error', error: res.error || 'Failed to save newsletter.', info: '' });
+      notify({ tone: 'error', message: res.error || 'Failed to save newsletter.' });
       return;
     }
     const campaign = res.data?.campaign;
+    const savedCampaignId = campaign?.id || campaignId;
     if (campaign?.id) setCampaignId(campaign.id);
     if (campaign) setCampaigns((current) => [campaign, ...current.filter((item) => item.id !== campaign.id)]);
     setCampaignState({ status: 'ready', error: '', info: status === 'scheduled' ? 'Newsletter scheduled.' : 'Draft saved.' });
+    notify({
+      message: status === 'scheduled' ? 'Newsletter scheduled.' : 'Draft saved.',
+      onUndo: previousCampaign
+        ? async () => {
+            const restore = await adminNewsletterSaveCampaign({
+              id: previousId,
+              subject: previousCampaign.subject,
+              content: previousCampaign.content,
+              status: previousCampaign.status === 'scheduled' ? 'scheduled' : 'draft',
+              scheduledAt: previousCampaign.scheduledAt,
+            });
+            if (!restore.ok) throw new Error(restore.error || 'Unable to undo newsletter save.');
+            loadCampaign(restore.data?.campaign || previousCampaign);
+            await loadCampaigns();
+          }
+        : async () => {
+            const remove = await adminNewsletterDeleteCampaign({ id: savedCampaignId });
+            if (!remove.ok) throw new Error(remove.error || 'Unable to undo newsletter creation.');
+            setCampaigns((current) => current.filter((item) => item.id !== savedCampaignId));
+            setCampaignId(previousId);
+            setSubject(previousSubject);
+            setContent(previousContent);
+            setScheduledAtInput(previousScheduledAt);
+          },
+    });
   }
 
   async function handleSendTest(event) {
@@ -202,10 +278,17 @@ export default function MailBlastPanel({ sessionEmail }) {
     const cleanTest = normalizeEmail(testEmail);
     if (!cleanTest || !cleanTest.includes('@')) {
       setSendState({ status: 'error', error: 'Enter a valid test email.', info: '' });
+      notify({ tone: 'error', message: 'Enter a valid test email.' });
       return;
     }
     const res = await adminNewsletterSend({ subject, message: content.intro, content, testEmail: cleanTest });
-    setSendState(res.ok ? { status: 'ready', error: '', info: `Test newsletter sent to ${cleanTest}.` } : { status: 'error', error: res.error || 'Failed to send test newsletter.', info: '' });
+    if (!res.ok) {
+      setSendState({ status: 'error', error: res.error || 'Failed to send test newsletter.', info: '' });
+      notify({ tone: 'error', message: res.error || 'Failed to send test newsletter.' });
+      return;
+    }
+    setSendState({ status: 'ready', error: '', info: `Test newsletter sent to ${cleanTest}.` });
+    notify({ message: `Test newsletter sent to ${cleanTest}.` });
   }
 
   async function handleSendCampaign(event) {
@@ -214,6 +297,7 @@ export default function MailBlastPanel({ sessionEmail }) {
     const recipients = subscribers.filter((email) => selected.has(email));
     if (recipients.length === 0) {
       setSendState({ status: 'error', error: 'Select at least one newsletter recipient.', info: '' });
+      notify({ tone: 'error', message: 'Select at least one newsletter recipient.' });
       return;
     }
     const batchSize = 50;
@@ -223,11 +307,13 @@ export default function MailBlastPanel({ sessionEmail }) {
       const res = await adminNewsletterSend({ subject, message: content.intro, content, recipients: batch, campaignId });
       if (!res.ok) {
         setSendState({ status: 'error', error: res.error || 'Failed while sending newsletter.', info: '' });
+        notify({ tone: 'error', message: res.error || 'Failed while sending newsletter.' });
         return;
       }
       setProgress((current) => ({ ...current, sent: Math.min(recipients.length, current.sent + batch.length) }));
     }
     setSendState({ status: 'ready', error: '', info: `Newsletter sent to ${recipients.length} recipients.` });
+    notify({ message: `Newsletter sent to ${recipients.length} recipients.` });
     loadCampaigns();
   }
 
@@ -265,7 +351,6 @@ export default function MailBlastPanel({ sessionEmail }) {
 
           <div className="newsletter-two-column"><label className="admin-form-label">Button label<input className="admin-form-input" value={content.ctaLabel} onChange={(event) => updateContent('ctaLabel', event.target.value)} /></label><label className="admin-form-label">Button link<input className="admin-form-input" value={content.ctaUrl} onChange={(event) => updateContent('ctaUrl', event.target.value)} /></label></div>
           <label className="admin-form-label">Closing<textarea className="admin-form-textarea" rows={4} value={content.closing} onChange={(event) => updateContent('closing', event.target.value)} /></label>
-          <StatusBox state={campaignState} fallback="Draft is ready to edit." />
           <div className="newsletter-schedule-row"><label className="admin-form-label">Schedule date and time<input className="admin-form-input" type="datetime-local" value={scheduledAtInput} onChange={(event) => setScheduledAtInput(event.target.value)} /></label><span>Scheduled newsletters are sent automatically by the Worker every 15 minutes.</span></div>
         </section>
 
@@ -277,7 +362,6 @@ export default function MailBlastPanel({ sessionEmail }) {
             <div className="newsletter-preview-footer">You’re receiving this because you joined the Black Bridge Mindset community.<br />Keep building. Keep crossing.</div>
           </div>
           <form className="newsletter-test-form" onSubmit={handleSendTest} data-bbm-tour="mail-test-email"><label className="admin-form-label">Test email<input className="admin-form-input" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} placeholder="you@example.com" /></label><button className="admin-secondary-button" type="submit" disabled={sendState.status === 'loading'}>Send test</button></form>
-          <StatusBox state={sendState} fallback="No newsletter has been sent from this draft." />
           {progress.total > 0 ? <div className="admin-progress">Progress: {progress.sent} / {progress.total}</div> : null}
         </section>
       </div>
@@ -288,7 +372,6 @@ export default function MailBlastPanel({ sessionEmail }) {
         <form onSubmit={handleSaveSubscribers}>
           <div className="newsletter-subscriber-toolbar"><label className="admin-form-label">Add address<input className="admin-form-input" value={addEmail} onChange={(event) => setAddEmail(event.target.value)} placeholder="person@example.com" /></label><button className="admin-secondary-button" type="button" onClick={handleAddSubscriber}>Add</button><button className="admin-secondary-button" type="button" onClick={() => setSelected(new Set(subscribers))}>Select all</button><button className="admin-secondary-button" type="button" onClick={() => setSelected(new Set())}>Select none</button></div>
           <div className="admin-subscriber-list">{subscribers.length === 0 ? <div className="admin-empty-state"><strong>No subscribers yet.</strong><span>New website subscribers will appear here.</span></div> : subscribers.map((email) => <label className="admin-subscriber-row" key={email}><input type="checkbox" checked={selected.has(email)} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(email); else next.delete(email); return next; })} /><span className="admin-subscriber-email">{email}</span><span className="admin-subscriber-type">{String(labels?.[email] || 'subscriber')}</span></label>)}</div>
-          <StatusBox state={subscribersState} fallback="Subscriber list is ready." />
           <div className="newsletter-subscriber-actions"><button className="admin-primary-button" type="submit" disabled={subscribersState.status === 'loading'}>Save list</button><button className="admin-danger-button" type="button" onClick={handleDeleteSelected} disabled={subscribersState.status === 'loading' || selected.size === 0}>Delete selected</button></div>
         </form>
       </section>
