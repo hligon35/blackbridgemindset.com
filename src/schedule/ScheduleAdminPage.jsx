@@ -162,18 +162,18 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
       mail: [
         {
           target: 'admin-tab-mail',
-          title: 'Mail Blast',
-          body: 'This is the Mail Blast panel for sending updates/newsletters.',
+          title: 'Newsletter',
+          body: 'Build branded Black Bridge Mindset newsletters, preview them, save drafts, schedule delivery, or send a test.',
         },
         {
           target: 'mail-subscribers-manage',
           title: 'Subscribers',
-          body: 'Add emails, select recipients, and save the list before sending.',
+          body: 'Add subscribers, use checkboxes to select recipients, or delete the selected addresses.',
         },
         {
-          target: 'mail-compose-fields',
-          title: 'Compose',
-          body: 'Write a subject and plain-text message for your update.',
+          target: 'mail-builder-fields',
+          title: 'Newsletter builder',
+          body: 'Create an opening message, reusable content sections, a call-to-action, and a branded closing.',
         },
         {
           target: 'mail-test-email',
@@ -181,9 +181,9 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
           body: 'Send a test email to yourself (or any address) before mailing the full list.',
         },
         {
-          target: 'mail-send-buttons',
-          title: 'Send campaign',
-          body: 'When you’re ready, send to the selected subscribers.',
+          target: 'mail-builder-actions',
+          title: 'Publish controls',
+          body: 'Save a draft, schedule it for later, send a test, or send the newsletter to the selected audience.',
         },
       ],
     }),
@@ -207,7 +207,7 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
   }
 
   function startTour(id) {
-    const nextPanel = id === 'mail' ? 'mail' : 'scheduler';
+    const nextPanel = id === 'mail' ? 'mail' : id === 'scheduler' ? 'scheduler' : id;
     setHelpOpen(false);
     setActivePanel(nextPanel);
     setTour({ active: true, id, step: 0 });
@@ -380,7 +380,7 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
       { id: 'inbox', label: 'Inbox', description: 'Website submissions' },
       { id: 'activity', label: 'Activity', description: 'Admin history' },
       { id: 'scheduler', label: 'Scheduler', description: 'Availability + invite links' },
-      { id: 'mail', label: 'Mail Blast', description: 'Newsletter / updates' },
+      { id: 'mail', label: 'Newsletter', description: 'Build and send community updates' },
     ],
     []
   );
@@ -504,7 +504,8 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
               ref={helpBtnRef}
               className="bbm-help-btn"
               type="button"
-              aria-label="Help"
+              aria-label="Open admin help"
+              title="Open admin help"
               aria-haspopup="menu"
               aria-expanded={helpOpen}
               onClick={() => setHelpOpen((v) => !v)}
@@ -521,17 +522,18 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
             role="menu"
             style={{ top: helpAnchor.top, left: helpAnchor.left }}
           >
+            <div className="bbm-help-heading">Admin help</div>
             <button className="bbm-help-item" type="button" role="menuitem" onClick={() => startTour('inbox')}>
               Inbox
             </button>
             <button className="bbm-help-item" type="button" role="menuitem" onClick={() => startTour('activity')}>
-              Activity
+              Activity log
             </button>
             <button className="bbm-help-item" type="button" role="menuitem" onClick={() => startTour('scheduler')}>
               Scheduler
             </button>
             <button className="bbm-help-item" type="button" role="menuitem" onClick={() => startTour('mail')}>
-              Mail Blast
+              Newsletter
             </button>
           </div>
         ) : null}
@@ -552,9 +554,6 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
               <>
                 <form data-bbm-tour="scheduler-availability" onSubmit={handleSaveAvailability} className="bbm-contact-form">
                   <h3 className="bbm-contact-subtitle" style={{ textAlign: 'center' }}>Availability</h3>
-
-                  {availabilityState.status === 'loading' && <p className="bbm-contact-text" style={{ textAlign: 'center' }}>Loading…</p>}
-                  {availabilityState.status === 'error' && <div className="bbm-form-error">{availabilityState.error}</div>}
 
                   <div
                     data-bbm-tour="scheduler-top-controls"
@@ -838,6 +837,9 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                   >
                     {availabilityState.status === 'saving' ? 'Saving…' : isAvailabilitySaved ? 'Saved' : 'Save availability'}
                   </button>
+                  <div className={`admin-alert admin-alert-${availabilityState.status === 'error' ? 'error' : availabilityState.status === 'loading' || availabilityState.status === 'saving' ? 'neutral' : 'success'}`} role="status" aria-live="polite">
+                    {availabilityState.status === 'error' ? availabilityState.error : availabilityState.status === 'loading' ? 'Loading availability…' : availabilityState.status === 'saving' ? 'Saving availability…' : isAvailabilitySaved ? 'Availability is saved.' : 'Availability has unsaved changes.'}
+                  </div>
                 </form>
 
                 <hr style={{ margin: '28px 0', border: 'none', borderTop: '1px solid rgba(247, 200, 115, 0.22)' }} />
@@ -886,7 +888,9 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                     {inviteState.status === 'loading' ? 'Generating…' : 'Generate link'}
                   </button>
 
-                  {inviteState.status === 'error' && <div className="bbm-form-error">{inviteState.error}</div>}
+                  <div className={`admin-alert admin-alert-${inviteState.status === 'error' ? 'error' : inviteState.status === 'loading' ? 'neutral' : 'success'}`} role="status" aria-live="polite">
+                    {inviteState.status === 'error' ? inviteState.error : inviteState.status === 'loading' ? 'Generating invite link…' : inviteState.status === 'ready' ? 'Invite link created and emailed.' : 'No invite link generated yet.'}
+                  </div>
 
                   {inviteState.status === 'ready' && (
                     <div>
