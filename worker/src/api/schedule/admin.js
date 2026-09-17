@@ -3,7 +3,7 @@ import { sendEmail } from '../../email';
 import { wrapBbmEmailHtml, bbmLinkStyle, renderBbmButtonHtml } from '../../emailTheme';
 import { listActivity, listSubmissions, updateSubmissionStatus } from './inbox';
 import { recordActivity } from '../../shared/submissions';
-import { buildNewsletterEmail, listNewsletterCampaigns, saveNewsletterCampaign } from './newsletterCampaigns';
+import { buildNewsletterEmail, deleteNewsletterCampaign, listNewsletterCampaigns, saveNewsletterCampaign } from './newsletterCampaigns';
 
 function jsonResponse(body, { status = 200, headers = {} } = {}) {
   return new Response(JSON.stringify(body), {
@@ -648,6 +648,12 @@ export async function handleAdmin(request, env, corsHeaders) {
     });
     if (!res.ok) return jsonResponse({ ok: false, error: res.error }, { status: res.status, headers: corsHeaders });
     return jsonResponse({ ok: true, campaign: res.campaign }, { status: 200, headers: corsHeaders });
+  }
+
+  if (url.pathname === '/api/schedule/admin/newsletter/campaigns/delete') {
+    const res = await deleteNewsletterCampaign(env, { id: body?.id, actorEmail });
+    if (!res.ok) return jsonResponse({ ok: false, error: res.error }, { status: res.status, headers: corsHeaders });
+    return jsonResponse({ ok: true }, { status: 200, headers: corsHeaders });
   }
 
   if (url.pathname === '/api/schedule/admin/newsletter/send') {
