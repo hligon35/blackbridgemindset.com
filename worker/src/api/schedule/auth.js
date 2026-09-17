@@ -1,4 +1,5 @@
 import { sendEmail } from '../../email';
+import { recordActivity } from '../../shared/submissions';
 import { wrapBbmEmailHtml, renderBbmCodeBoxHtml } from '../../emailTheme';
 import { jsonResponse } from '../../shared/http';
 import { escapeHtml, normalizeEmail } from '../../shared/sanitize';
@@ -335,6 +336,12 @@ export async function handleAdminAuth(request, env, corsHeaders) {
     const payloadB64 = base64UrlEncode(new TextEncoder().encode(payloadJson));
     const sig = await hmacSha256Base64Url(sessionSecret, payloadB64);
     const token = `${payloadB64}.${sig}`;
+
+    await recordActivity(env, {
+      action: 'admin.login',
+      entityType: 'admin',
+      actorEmail: email,
+    });
 
     return jsonResponse(
       { ok: true },
