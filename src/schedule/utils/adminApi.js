@@ -97,6 +97,10 @@ export async function adminAuthVerify({ email, code }) {
   return postJson('/api/schedule/admin/auth/verify', { email, code });
 }
 
+export async function adminGetAuthConfig() {
+  return postJson('/api/schedule/admin/auth/config', {});
+}
+
 export async function adminGetSession() {
   return postJson('/api/schedule/admin/auth/session', {});
 }
@@ -125,6 +129,18 @@ export async function adminNewsletterSetSubscribers({ subscribers }) {
   return postJson('/api/schedule/admin/newsletter/subscribers/set', { subscribers });
 }
 
-export async function adminNewsletterSend({ subject, message, recipients, testEmail }) {
-  return postJson('/api/schedule/admin/newsletter/send', { subject, message, recipients, testEmail });
+export async function adminNewsletterDeleteSubscribers({ subscribers }) {
+  return postJson('/api/schedule/admin/newsletter/subscribers/delete', { subscribers });
+}
+
+export async function adminNewsletterGetCampaigns() {
+  return postJson('/api/schedule/admin/newsletter/campaigns/list', {});
+}
+
+export async function adminNewsletterSaveCampaign({ id, subject, content, status, scheduledAt }) {
+  return postJson('/api/schedule/admin/newsletter/campaigns/save', { id, subject, content, status, scheduledAt });
+}
+
+export async function adminNewsletterSend({ subject, message, content, recipients, testEmail, campaignId }) {
+  return postJson('/api/schedule/admin/newsletter/send', { subject, message, content, recipients, testEmail, campaignId });
 }
