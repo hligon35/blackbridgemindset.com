@@ -2,6 +2,15 @@ function safeText(v) {
   return String(v || '').trim();
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 /**
  * Shared HTML wrapper for all outbound emails.
  *
@@ -21,12 +30,12 @@ export function wrapBbmEmailHtml({
   const body = String(contentHtml || '');
   const footer = String(footerHtml || '');
 
-  // Theme tokens (mirrors the site): dark + gold accent.
-  const bg = '#0a0a0a';
-  const panel = '#151515';
-  const border = '#2a2a2a';
-  const text = '#ffffff';
-  const muted = '#bdbdbd';
+  // Theme tokens mirror the Black Bridge Mindset site: charcoal, slate, gold, and silver.
+  const bg = '#07090b';
+  const panel = '#121a22';
+  const border = '#35414d';
+  const text = '#f5f7fa';
+  const muted = '#bfc7cf';
   const accent = '#f7c873';
   const logoUrl = 'https://blackbridgemindset.com/images/bbmlogo.png';
 
@@ -39,27 +48,37 @@ export function wrapBbmEmailHtml({
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="x-apple-disable-message-reformatting" />
-    <title>${t}</title>
+    <title>${escapeHtml(t)}</title>
   </head>
   <body style="margin:0; padding:0; background:${bg}; color:${text};">
     ${
       ph
-        ? `<div style="display:none; font-size:1px; color:${bg}; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">${ph}${preheaderPadding}</div>`
+        ? `<div style="display:none; font-size:1px; color:${bg}; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">${escapeHtml(ph)}${preheaderPadding}</div>`
         : ''
     }
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${bg}; width:100%;">
       <tr>
         <td align="center" style="padding:28px 12px;">
-          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px; max-width:600px;">
+          <table role="presentation" width="620" cellspacing="0" cellpadding="0" border="0" style="width:620px; max-width:620px;">
             <tr>
-              <td style="padding:0 0 14px 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;">
-                <div style="font-size:12px; letter-spacing:3px; text-transform:uppercase; color:${accent}; font-weight:800;">Black Bridge Mindset</div>
-                ${t ? `<div style="margin-top:10px; font-size:20px; font-weight:700; color:${text};">${t}</div>` : ''}
-                <div style="margin-top:12px; height:2px; background:${accent}; width:100%;"></div>
+              <td style="padding:0 0 18px 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;">
+                  <tr>
+                    <td valign="middle" style="padding:0 11px 0 0;">
+                      <img src="${logoUrl}" width="42" height="42" alt="Black Bridge Mindset" style="display:block; width:42px; height:42px; border-radius:999px; border:1px solid rgba(247,200,115,0.65);" />
+                    </td>
+                    <td valign="middle">
+                      <div style="font-size:12px; letter-spacing:3px; text-transform:uppercase; color:${accent}; font-weight:800;">Black Bridge Mindset</div>
+                      <div style="margin-top:4px; color:${muted}; font-size:12px;">The conversations that carry us forward.</div>
+                    </td>
+                  </tr>
+                </table>
+                ${t ? `<div style="margin-top:22px; font-family:Georgia, 'Times New Roman', serif; font-size:28px; line-height:1.18; font-weight:700; color:${text};">${escapeHtml(t)}</div>` : ''}
+                <div style="margin-top:16px; height:2px; background:${accent}; width:100%;"></div>
               </td>
             </tr>
             <tr>
-              <td style="background:${panel}; border:1px solid ${border}; border-radius:14px; padding:18px 18px; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; line-height:1.6; color:${text};">
+              <td style="background:${panel}; border:1px solid ${border}; border-radius:14px; padding:26px 24px; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; line-height:1.65; color:${text};">
                 ${body}
               </td>
             </tr>
@@ -115,7 +134,7 @@ export function renderBbmCodeBoxHtml(codeEscaped) {
 export function renderBbmMessageBoxHtml(innerHtml) {
   const content = String(innerHtml || '');
   return `
-    <div style="padding:12px 14px; background:#0f0f0f; border:1px solid #2a2a2a; border-radius:12px;">
+    <div style="padding:15px 16px; background:#1c2731; border:1px solid #465360; border-left:3px solid #f7c873; border-radius:12px;">
       ${content}
     </div>
   `;
@@ -127,9 +146,9 @@ export function renderBbmButtonHtml({ hrefEscaped, labelEscaped, secondary = fal
   if (!href || !label) return '';
 
   // Choose colors based on button style
-  const bgColor = secondary ? '#232323' : '#f7c873';
-  const textColor = secondary ? '#f7c873' : '#232323';
-  const borderStyle = secondary ? 'border:1px solid #f7c873;' : '';
+  const bgColor = secondary ? '#1c2731' : '#f7c873';
+  const textColor = secondary ? '#f7c873' : '#171b20';
+  const borderStyle = secondary ? 'border:1px solid #f7c873;' : 'border:1px solid #f7c873;';
 
   // Button built from a table for better email client compatibility.
   return `
@@ -137,7 +156,7 @@ export function renderBbmButtonHtml({ hrefEscaped, labelEscaped, secondary = fal
       <tr>
         <td bgcolor="${bgColor}" style="border-radius:10px; ${borderStyle}">
           <a href="${href}" target="_blank" rel="noopener noreferrer"
-             style="display:inline-block; padding:10px 14px; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; font-size:14px; font-weight:700; color:${textColor}; text-decoration:none; border-radius:10px;">
+             style="display:inline-block; padding:12px 18px; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; font-size:14px; font-weight:800; letter-spacing:0.1px; color:${textColor}; text-decoration:none; border-radius:10px;">
             ${label}
           </a>
         </td>
