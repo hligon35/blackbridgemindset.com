@@ -366,6 +366,18 @@
   font-size: 11px;
 }
 
+.admin-delivery-warning {
+  margin-top: 18px;
+  padding: 11px 13px;
+  border: 1px solid #edd69a;
+  border-radius: 7px;
+  background: #fff9e9;
+  color: #795c1b;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .admin-submission-detail {
   padding: 28px;
 }
@@ -1294,6 +1306,85 @@
   background: #273b50;
 }
 
+.admin-toast-viewport {
+  position: fixed;
+  top: 88px;
+  right: 24px;
+  z-index: 4000;
+  width: min(420px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.admin-toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 14px 13px 16px;
+  border: 1px solid;
+  border-radius: 10px;
+  box-shadow: 0 14px 35px rgba(23, 32, 43, 0.18);
+  pointer-events: auto;
+  animation: admin-toast-in 180ms ease-out;
+}
+
+.admin-toast-success {
+  border-color: #56a875;
+  background: #d9f5e3;
+  color: #164d2a;
+}
+
+.admin-toast-error {
+  border-color: #dc7777;
+  background: #fff0f0;
+  color: #7f1d1d;
+}
+
+.admin-toast-neutral {
+  border-color: #cbd5e1;
+  background: #f3f6f9;
+  color: #344252;
+}
+
+.admin-toast-message {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.admin-toast-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.admin-toast-button {
+  padding: 6px 9px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-toast-button:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.admin-toast-close {
+  opacity: 0.8;
+}
+
+@keyframes admin-toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 760px) {
   .admin-topbar {
     align-items: flex-start;
@@ -1360,5 +1451,16 @@
 
   .admin-subscriber-row {
     grid-template-columns: auto minmax(150px, 1fr) max-content;
+  }
+
+  .admin-toast-viewport {
+    top: 20px;
+    right: 16px;
+  }
+
+  .admin-toast {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
   }
 }
