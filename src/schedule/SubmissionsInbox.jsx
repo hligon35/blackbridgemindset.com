@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { adminGetSubmissions, adminUpdateSubmission } from './utils/adminApi';
+import { useAdminToast } from './components/AdminToast';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -26,12 +27,14 @@ export default function SubmissionsInbox() {
   const [selectedId, setSelectedId] = useState(null);
   const [state, setState] = useState({ status: 'loading', error: '' });
   const [updatingId, setUpdatingId] = useState(null);
+  const { notify } = useAdminToast();
 
-  async function load(nextFilter = filter) {
+  async function load(nextFilter = filter, { announce = false } = {}) {
     setState({ status: 'loading', error: '' });
     const result = await adminGetSubmissions({ status: nextFilter });
     if (!result.ok) {
       setState({ status: 'error', error: result.error || 'Unable to load submissions.' });
+      notify({ tone: 'error', message: result.error || 'Unable to load submissions.' });
       return;
     }
 
@@ -39,6 +42,7 @@ export default function SubmissionsInbox() {
     setSubmissions(next);
     setSelectedId((current) => (next.some((item) => item.id === current) ? current : next[0]?.id || null));
     setState({ status: 'ready', error: '' });
+    if (announce) notify({ message: 'Submissions refreshed.' });
   }
 
   useEffect(() => {
@@ -53,14 +57,26 @@ export default function SubmissionsInbox() {
   );
 
   async function updateStatus(id, status) {
+    const previousStatus = submissions.find((item) => item.id === id)?.status;
     setUpdatingId(id);
     const result = await adminUpdateSubmission({ id, status });
     setUpdatingId(null);
     if (!result.ok) {
       setState({ status: 'error', error: result.error || 'Unable to update submission.' });
+      notify({ tone: 'error', message: result.error || 'Unable to update submission.' });
       return;
     }
     await load(filter);
+    notify({
+      message: status === 'archived' ? 'Submission archived.' : 'Submission marked as read.',
+      onUndo: previousStatus
+        ? async () => {
+            const undoResult = await adminUpdateSubmission({ id, status: previousStatus });
+            if (!undoResult.ok) throw new Error(undoResult.error || 'Unable to undo submission update.');
+            await load(filter);
+          }
+        : undefined,
+    });
   }
 
   return (
@@ -71,7 +87,7 @@ export default function SubmissionsInbox() {
           <h1 id="submissions-heading">Submissions</h1>
           <p>Review messages sent through the website contact form.</p>
         </div>
-        <button className="admin-secondary-button" type="button" onClick={() => load(filter)} disabled={state.status === 'loading'}>
+        <button className="admin-secondary-button" type="button" onClick={() => load(filter, { announce: true })} disabled={state.status === 'loading'}>
           {state.status === 'loading' ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
@@ -89,10 +105,6 @@ export default function SubmissionsInbox() {
             {item.label}
           </button>
         ))}
-      </div>
-
-      <div className={`admin-alert admin-alert-${state.status === 'error' ? 'error' : state.status === 'loading' ? 'neutral' : 'success'}`} role="status" aria-live="polite">
-        {state.status === 'error' ? state.error : state.status === 'loading' ? 'Loading submissions…' : submissions.length ? `${submissions.length} submissions in this view.` : 'No submissions in this view yet.'}
       </div>
 
       {state.status === 'ready' && submissions.length === 0 ? (
@@ -163,7 +175,7 @@ export default function SubmissionsInbox() {
               </div>
 
               {selected.deliveryStatus === 'failed' ? (
-                <div className="admin-alert admin-alert-warning">The message was saved, but email delivery failed. Reply from this inbox after checking the Resend configuration.</div>
+                <div className="admin-delivery-warning">The message was saved, but email delivery failed. Reply from this inbox after checking the Resend configuration.</div>
               ) : null}
             </article>
           ) : null}
