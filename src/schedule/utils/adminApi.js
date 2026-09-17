@@ -141,6 +141,10 @@ export async function adminNewsletterSaveCampaign({ id, subject, content, status
   return postJson('/api/schedule/admin/newsletter/campaigns/save', { id, subject, content, status, scheduledAt });
 }
 
+export async function adminNewsletterDeleteCampaign({ id }) {
+  return postJson('/api/schedule/admin/newsletter/campaigns/delete', { id });
+}
+
 export async function adminNewsletterSend({ subject, message, content, recipients, testEmail, campaignId }) {
   return postJson('/api/schedule/admin/newsletter/send', { subject, message, content, recipients, testEmail, campaignId });
 }
