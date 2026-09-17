@@ -15,6 +15,7 @@ import AdminCarouselNav from './components/AdminCarouselNav';
 import MailBlastPanel from './components/MailBlastPanel';
 import ActivityLog from './ActivityLog';
 import SubmissionsInbox from './SubmissionsInbox';
+import { useAdminToast } from './components/AdminToast';
 
 function defaultAvailability() {
   return {
@@ -374,6 +375,7 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
   const [inviteName, setInviteName] = useState('');
   const [inviteDays, setInviteDays] = useState('7');
   const [inviteState, setInviteState] = useState({ status: 'idle', data: null, error: null });
+  const { notify } = useAdminToast();
 
   const adminPanels = useMemo(
     () => [
@@ -428,6 +430,7 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
 
       if (!res.ok) {
         setAvailabilityState({ status: 'error', data: null, error: res.error || 'Failed to load availability' });
+        notify({ tone: 'error', message: res.error || 'Failed to load availability.' });
         return;
       }
 
@@ -440,7 +443,7 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
     return () => {
       cancelled = true;
     };
-  }, [sessionState.status]);
+  }, [notify, sessionState.status]);
 
   async function handleLogout() {
     await adminLogout();
@@ -455,15 +458,28 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
     e.preventDefault();
     if (sessionState.status !== 'ready') return;
 
+    const previousAvailability = availabilityState.data;
     setAvailabilityState((s) => ({ ...s, status: 'saving', error: null }));
     const res = await adminSetAvailability({ availability: availabilityDraft });
 
     if (!res.ok) {
       setAvailabilityState({ status: 'error', data: null, error: res.error || 'Failed to save availability' });
+      notify({ tone: 'error', message: res.error || 'Failed to save availability.' });
       return;
     }
 
     setAvailabilityState({ status: 'ready', data: availabilityDraft, error: null });
+    notify({
+      message: 'Availability saved.',
+      onUndo: previousAvailability
+        ? async () => {
+            const restore = await adminSetAvailability({ availability: previousAvailability });
+            if (!restore.ok) throw new Error(restore.error || 'Unable to undo availability save.');
+            setAvailabilityDraft(previousAvailability);
+            setAvailabilityState({ status: 'ready', data: previousAvailability, error: null });
+          }
+        : undefined,
+    });
   }
 
   async function handleCreateInvite(e) {
@@ -473,10 +489,12 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
     const cleanName = String(inviteName || '').trim();
     if (!cleanName) {
       setInviteState({ status: 'error', data: null, error: 'Guest name is required.' });
+      notify({ tone: 'error', message: 'Guest name is required.' });
       return;
     }
     if (cleanName.length > 80) {
       setInviteState({ status: 'error', data: null, error: 'Guest name too long (max 80).' });
+      notify({ tone: 'error', message: 'Guest name too long (max 80).' });
       return;
     }
 
@@ -485,10 +503,12 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
 
     if (!res.ok) {
       setInviteState({ status: 'error', data: null, error: res.error || 'Failed to generate link' });
+      notify({ tone: 'error', message: res.error || 'Failed to generate invite link.' });
       return;
     }
 
     setInviteState({ status: 'ready', data: res.data, error: null });
+    notify({ message: `Invite link created and emailed to ${inviteEmail}.` });
   }
 
   return (
@@ -837,9 +857,6 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                   >
                     {availabilityState.status === 'saving' ? 'Saving…' : isAvailabilitySaved ? 'Saved' : 'Save availability'}
                   </button>
-                  <div className={`admin-alert admin-alert-${availabilityState.status === 'error' ? 'error' : availabilityState.status === 'loading' || availabilityState.status === 'saving' ? 'neutral' : 'success'}`} role="status" aria-live="polite">
-                    {availabilityState.status === 'error' ? availabilityState.error : availabilityState.status === 'loading' ? 'Loading availability…' : availabilityState.status === 'saving' ? 'Saving availability…' : isAvailabilitySaved ? 'Availability is saved.' : 'Availability has unsaved changes.'}
-                  </div>
                 </form>
 
                 <hr style={{ margin: '28px 0', border: 'none', borderTop: '1px solid rgba(247, 200, 115, 0.22)' }} />
@@ -888,10 +905,6 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                     {inviteState.status === 'loading' ? 'Generating…' : 'Generate link'}
                   </button>
 
-                  <div className={`admin-alert admin-alert-${inviteState.status === 'error' ? 'error' : inviteState.status === 'loading' ? 'neutral' : 'success'}`} role="status" aria-live="polite">
-                    {inviteState.status === 'error' ? inviteState.error : inviteState.status === 'loading' ? 'Generating invite link…' : inviteState.status === 'ready' ? 'Invite link created and emailed.' : 'No invite link generated yet.'}
-                  </div>
-
                   {inviteState.status === 'ready' && (
                     <div>
                       <label className="bbm-form-label">
@@ -903,11 +916,6 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                           onFocus={(e) => e.target.select()}
                         />
                       </label>
-                      <div className="bbm-form-success" style={{ marginTop: 10 }}>
-                        Link emailed to: <b>{inviteEmail}</b>
-                        <br />
-                        Expires: {new Date(inviteState.data.expiresAt).toLocaleDateString()}
-                      </div>
                     </div>
                   )}
                 </form>
