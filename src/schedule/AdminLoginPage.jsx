@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import Layout from '../Layout';
-
 import { adminAuthStart, adminAuthVerify, adminGetSession } from './utils/adminApi';
+import AdminShell from './AdminShell';
 
 function looksLikePhone(value) {
   const v = String(value || '').trim();
@@ -141,23 +140,23 @@ export default function AdminLoginPage({ onSuccess }) {
   }
 
   return (
-    <Layout>
-      <section className="bbm-section">
-        <h2>Admin Login</h2>
+    <AdminShell>
+      <section className="admin-login-panel">
+        <p className="admin-eyebrow">Private workspace</p>
+        <h1>Admin login</h1>
+        <p className="admin-login-copy">Sign in to manage submissions, scheduling, and community email.</p>
 
         <form
           onSubmit={step === 'email' ? handleSendCode : handleVerifyCode}
           className="bbm-contact-form"
           style={{ maxWidth: 520, margin: '0 auto' }}
         >
-          <h3 className="bbm-contact-subtitle" style={{ textAlign: 'center' }}>
-            Secure access
-          </h3>
+          <h2 className="admin-form-heading">Secure access</h2>
 
-          <label className="bbm-form-label">
+          <label className="admin-form-label">
             Email
             <input
-              className="bbm-form-input"
+              className="admin-form-input"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -178,10 +177,10 @@ export default function AdminLoginPage({ onSuccess }) {
           </label>
 
           {step === 'code' && (
-            <label className="bbm-form-label">
+            <label className="admin-form-label">
               Code
               <input
-                className="bbm-form-input"
+                className="admin-form-input"
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
@@ -194,16 +193,16 @@ export default function AdminLoginPage({ onSuccess }) {
             </label>
           )}
 
-          {error ? <div className="bbm-form-error">{error}</div> : null}
-          {info ? <div className="bbm-form-success">{info}</div> : null}
+          {error ? <div className="admin-alert admin-alert-error">{error}</div> : null}
+          {info ? <div className="admin-alert admin-alert-success">{info}</div> : null}
 
-          <button className="bbm-form-submit" type="submit" disabled={status === 'loading'}>
+          <button className="admin-primary-button admin-submit-button" type="submit" disabled={status === 'loading'}>
             {status === 'loading' ? 'Working…' : step === 'email' ? 'Send code' : 'Verify code'}
           </button>
 
           {step === 'code' && (
             <button
-              className="bbm-form-submit"
+              className="admin-secondary-button admin-submit-button"
               type="button"
               onClick={() => {
                 setStep('email');
@@ -219,6 +218,6 @@ export default function AdminLoginPage({ onSuccess }) {
           )}
         </form>
       </section>
-    </Layout>
+    </AdminShell>
   );
 }
