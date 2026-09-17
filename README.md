@@ -62,6 +62,12 @@ npx wrangler secret put YOUTUBE_API_KEY --config worker/wrangler.toml
 npx wrangler secret put RESEND_API_KEY --config worker/wrangler.toml
 ```
 
+6. Apply the D1 migration for the submissions inbox and activity log:
+
+```bash
+npx wrangler d1 execute bb_guest_schedule --remote --file=./worker/src/api/schedule/migration-add-admin-inbox.sql
+```
+
 After the first deployment, confirm the `blackbridgemindset.com/*` and `www.blackbridgemindset.com/*` routes are active. Remove any old SendGrid or Cloudflare Email Service configuration after the Worker is live; the source now uses only Resend.
 
 ## APIs and security
