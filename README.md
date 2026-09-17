@@ -62,10 +62,12 @@ npx wrangler secret put YOUTUBE_API_KEY --config worker/wrangler.toml
 npx wrangler secret put RESEND_API_KEY --config worker/wrangler.toml
 ```
 
-6. Apply the D1 migration for the submissions inbox and activity log:
+6. For Google admin sign-in, create a Cloudflare Access application for `/admin*` and `/api/schedule/admin/*`, enable Google as the login method, and allow the admin email. Set `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` in `worker/wrangler.toml`. Cloudflare Access must use the exact Google redirect URI shown in its Login methods settings; the website URL is not the OAuth redirect URI. The Worker validates the Access JWT and keeps email-code login as a fallback.
+
+7. Apply the D1 migration for the submissions inbox, activity log, and newsletter campaigns:
 
 ```bash
-npx wrangler d1 execute bb_guest_schedule --remote --file=./worker/src/api/schedule/migration-add-admin-inbox.sql
+npx wrangler d1 execute bb_guest_schedule --remote --yes --file ./worker/src/api/schedule/migration-add-admin-inbox.sql --config worker/wrangler.toml
 ```
 
 After the first deployment, confirm the `blackbridgemindset.com/*` and `www.blackbridgemindset.com/*` routes are active. Remove any old SendGrid or Cloudflare Email Service configuration after the Worker is live; the source now uses only Resend.
