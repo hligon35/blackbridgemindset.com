@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 import { adminGetActivity } from './utils/adminApi';
+import { useAdminToast } from './components/AdminToast';
 
 function formatDate(value) {
   const date = new Date(Number(value));
@@ -30,20 +31,25 @@ function detailText(value) {
 export default function ActivityLog() {
   const [activity, setActivity] = useState([]);
   const [state, setState] = useState({ status: 'loading', error: '' });
+  const { notify } = useAdminToast();
 
-  async function load() {
+  async function load({ announce = false } = {}) {
     setState({ status: 'loading', error: '' });
     const result = await adminGetActivity();
     if (!result.ok) {
       setState({ status: 'error', error: result.error || 'Unable to load activity.' });
+      notify({ tone: 'error', message: result.error || 'Unable to load activity.' });
       return;
     }
     setActivity(Array.isArray(result.data?.activity) ? result.data.activity : []);
     setState({ status: 'ready', error: '' });
+    if (announce) notify({ message: 'Activity log refreshed.' });
   }
 
   useEffect(() => {
     load();
+    // The initial load intentionally runs once when the panel mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -54,13 +60,9 @@ export default function ActivityLog() {
           <h1 id="activity-heading">Activity log</h1>
           <p>A timeline of inbox actions and admin activity.</p>
         </div>
-        <button className="admin-secondary-button" type="button" onClick={load} disabled={state.status === 'loading'}>
+        <button className="admin-secondary-button" type="button" onClick={() => load({ announce: true })} disabled={state.status === 'loading'}>
           {state.status === 'loading' ? 'Refreshing…' : 'Refresh'}
         </button>
-      </div>
-
-      <div className={`admin-alert admin-alert-${state.status === 'error' ? 'error' : state.status === 'loading' ? 'neutral' : 'success'}`} role="status" aria-live="polite">
-        {state.status === 'error' ? state.error : state.status === 'loading' ? 'Loading activity…' : activity.length ? `${activity.length} recent admin activities.` : 'No admin activity recorded yet.'}
       </div>
 
       {state.status === 'ready' && activity.length === 0 ? (
