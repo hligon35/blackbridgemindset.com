@@ -4,5 +4,7 @@
 ADMIN_ALLOWED_EMAILS=you@example.com
 ADMIN_OTP_SECRET=replace-with-a-long-random-value
 ADMIN_SESSION_SECRET=replace-with-a-different-long-random-value
+CF_ACCESS_TEAM_DOMAIN=your-team.cloudflareaccess.com
+CF_ACCESS_AUD=your-cloudflare-access-application-audience
 YOUTUBE_API_KEY=replace-with-your-youtube-api-key
 RESEND_API_KEY=re_replace-with-your-resend-api-key
