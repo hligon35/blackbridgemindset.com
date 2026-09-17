@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import Layout from '../Layout';
+import AdminShell from './AdminShell';
 
 import {
   adminCreateInvite,
@@ -13,6 +13,8 @@ import {
 
 import AdminCarouselNav from './components/AdminCarouselNav';
 import MailBlastPanel from './components/MailBlastPanel';
+import ActivityLog from './ActivityLog';
+import SubmissionsInbox from './SubmissionsInbox';
 
 function defaultAvailability() {
   return {
@@ -44,7 +46,7 @@ function availabilitySignature(value) {
 
 export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEmail = null, onUnauthorized, onLoggedOut }) {
   useEffect(() => {
-    document.title = 'Schedule Admin | Black Bridge Mindset';
+    document.title = 'Admin Dashboard | Black Bridge Mindset';
   }, []);
 
   const navigate = useNavigate();
@@ -112,7 +114,7 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
     email: sessionEmail,
   });
 
-  const [activePanel, setActivePanel] = useState('scheduler');
+  const [activePanel, setActivePanel] = useState('inbox');
 
   const tours = useMemo(
     () => ({
@@ -361,6 +363,8 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
 
   const adminPanels = useMemo(
     () => [
+      { id: 'inbox', label: 'Inbox', description: 'Website submissions' },
+      { id: 'activity', label: 'Activity', description: 'Admin history' },
       { id: 'scheduler', label: 'Scheduler', description: 'Availability + invite links' },
       { id: 'mail', label: 'Mail Blast', description: 'Newsletter / updates' },
     ],
@@ -474,11 +478,14 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
   }
 
   return (
-    <Layout>
-      <section className="bbm-section">
-        <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+    <AdminShell email={sessionState.email} onLogout={handleLogout}>
+      <section className="admin-dashboard-section">
+        <div className="admin-dashboard-heading">
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-            <h2 style={{ margin: 0 }}>Admin</h2>
+            <div>
+              <p className="admin-eyebrow">Workspace</p>
+              <h1>Dashboard</h1>
+            </div>
             <button
               ref={helpBtnRef}
               className="bbm-help-btn"
@@ -491,11 +498,6 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
               ?
             </button>
           </div>
-          {sessionState.status === 'ready' ? (
-            <button className="bbm-form-submit" type="button" onClick={handleLogout} style={{ marginTop: 0 }}>
-              Log out
-            </button>
-          ) : null}
         </div>
 
         {helpOpen ? (
@@ -517,12 +519,16 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
         {sessionState.status !== 'ready' ? (
           <p className="bbm-contact-text" style={{ textAlign: 'center' }}>Checking session…</p>
         ) : (
-          <div style={{ maxWidth: 760, margin: '0 auto' }}>
+          <div className="admin-workspace">
             <div data-bbm-tour="admin-panels">
               <AdminCarouselNav items={adminPanels} activeId={activePanel} onChange={setActivePanel} />
             </div>
 
-            {activePanel === 'scheduler' ? (
+            {activePanel === 'inbox' ? (
+              <SubmissionsInbox />
+            ) : activePanel === 'activity' ? (
+              <ActivityLog />
+            ) : activePanel === 'scheduler' ? (
               <>
                 <form data-bbm-tour="scheduler-availability" onSubmit={handleSaveAvailability} className="bbm-contact-form">
                   <h3 className="bbm-contact-subtitle" style={{ textAlign: 'center' }}>Availability</h3>
@@ -958,6 +964,6 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
           <div className="bbm-tour-body">Scroll a bit — I’m looking for the next part of the page…</div>
         </div>
       ) : null}
-    </Layout>
+    </AdminShell>
   );
 }
