@@ -4,6 +4,7 @@ import { wrapBbmEmailHtml, renderBbmMessageBoxHtml, bbmMutedTextStyle } from './
 import { jsonResponse, securityHeaders } from './shared/http';
 import { escapeHtml } from './shared/sanitize';
 import { createContactSubmission, recordActivity, updateContactSubmissionDelivery } from './shared/submissions';
+import { processScheduledNewsletters } from './api/schedule/newsletterCampaigns';
 
 function parseAllowedOrigins(env) {
   const raw = String(env.ALLOWED_ORIGINS || '').trim();
@@ -118,6 +119,10 @@ async function sendContactEmail(env, { replyToEmail, subject, text, html }) {
 }
 
 export default {
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(processScheduledNewsletters(env));
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
 
