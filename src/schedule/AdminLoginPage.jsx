@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { adminAuthStart, adminAuthVerify, adminGetSession } from './utils/adminApi';
+import { adminAuthStart, adminAuthVerify, adminGetAuthConfig, adminGetSession } from './utils/adminApi';
 import AdminShell from './AdminShell';
 
 function looksLikePhone(value) {
@@ -36,6 +36,17 @@ export default function AdminLoginPage({ onSuccess }) {
   const [status, setStatus] = useState('idle'); // idle | loading
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [googleAuthEnabled, setGoogleAuthEnabled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    adminGetAuthConfig().then((res) => {
+      if (!cancelled && res.ok) setGoogleAuthEnabled(Boolean(res.data?.googleAuthEnabled));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -146,12 +157,30 @@ export default function AdminLoginPage({ onSuccess }) {
         <h1>Admin login</h1>
         <p className="admin-login-copy">Sign in to manage submissions, scheduling, and community email.</p>
 
+        {googleAuthEnabled ? (
+          <div className="admin-google-access-card">
+            <strong>Google account access</strong>
+            <span>Use the authorized Google account connected through Cloudflare Access.</span>
+            <button
+              className="admin-primary-button admin-submit-button"
+              type="button"
+              onClick={() => {
+                const returnTo = `${window.location.origin}/admin`;
+                window.location.assign(`/cdn-cgi/access/login?returnTo=${encodeURIComponent(returnTo)}`);
+              }}
+            >
+              Continue with Google
+            </button>
+          </div>
+        ) : null}
+
         <form
           onSubmit={step === 'email' ? handleSendCode : handleVerifyCode}
           className="bbm-contact-form"
           style={{ maxWidth: 520, margin: '0 auto' }}
         >
-          <h2 className="admin-form-heading">Secure access</h2>
+          <h2 className="admin-form-heading">{googleAuthEnabled ? 'Email-code fallback' : 'Secure access'}</h2>
+          {googleAuthEnabled ? <p className="admin-login-method-note">If Google Access is unavailable, use the one-time code below.</p> : null}
 
           <label className="admin-form-label">
             Email
