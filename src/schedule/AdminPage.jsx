@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import AdminLoginPage from './AdminLoginPage';
 import AdminShell from './AdminShell';
 import ScheduleAdminPage from './ScheduleAdminPage';
+import { AdminToastProvider } from './components/AdminToast';
 import { adminGetSession } from './utils/adminApi';
 
 export default function AdminPage() {
@@ -45,24 +46,32 @@ export default function AdminPage() {
 
   if (sessionState.status === 'loading') {
     return (
-      <AdminShell>
-        <section className="admin-panel admin-loading-panel">
-          <p>Checking session…</p>
-        </section>
-      </AdminShell>
+      <AdminToastProvider>
+        <AdminShell>
+          <section className="admin-panel admin-loading-panel">
+            <p>Checking session…</p>
+          </section>
+        </AdminShell>
+      </AdminToastProvider>
     );
   }
 
   if (sessionState.status !== 'ready') {
-    return <AdminLoginPage onSuccess={refreshSession} />;
+    return (
+      <AdminToastProvider>
+        <AdminLoginPage onSuccess={refreshSession} />
+      </AdminToastProvider>
+    );
   }
 
   return (
-    <ScheduleAdminPage
-      skipSessionCheck
-      sessionEmail={sessionState.email}
-      onUnauthorized={() => setSessionState({ status: 'unauthorized', email: null })}
-      onLoggedOut={() => setSessionState({ status: 'unauthorized', email: null })}
-    />
+    <AdminToastProvider>
+      <ScheduleAdminPage
+        skipSessionCheck
+        sessionEmail={sessionState.email}
+        onUnauthorized={() => setSessionState({ status: 'unauthorized', email: null })}
+        onLoggedOut={() => setSessionState({ status: 'unauthorized', email: null })}
+      />
+    </AdminToastProvider>
   );
 }
