@@ -216,7 +216,7 @@ export default function MailBlastPanel({ sessionEmail }) {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto' }}>
+    <div>
       <h3 className="bbm-contact-subtitle" style={{ textAlign: 'center' }}>
         Mail Blast
       </h3>

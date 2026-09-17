@@ -128,7 +128,106 @@ function makeSessionCookie(value, { maxAgeSeconds, secure }) {
   return parts.join('; ');
 }
 
+function base64UrlToUint8Array(input) {
+  const padded = input.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(input.length / 4) * 4, '=');
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+let accessJwksCache = null; // { teamDomain, keys, fetchedAtMs }
+const ACCESS_JWKS_TTL_MS = 60 * 60 * 1000;
+
+async function getAccessJwks(teamDomain) {
+  if (accessJwksCache && accessJwksCache.teamDomain === teamDomain && Date.now() - accessJwksCache.fetchedAtMs < ACCESS_JWKS_TTL_MS) {
+    return accessJwksCache.keys;
+  }
+
+  const res = await fetch(`https://${teamDomain}/cdn-cgi/access/certs`);
+  if (!res.ok) throw new Error('Failed to fetch Access certs');
+  const data = await res.json();
+  const keys = Array.isArray(data?.keys) ? data.keys : [];
+  accessJwksCache = { teamDomain, keys, fetchedAtMs: Date.now() };
+  return keys;
+}
+
+// Verifies a Cloudflare Access JWT (Cf-Access-Jwt-Assertion) and returns the
+// authenticated email, so a successful Access login (e.g. Google SSO) can be
+// trusted directly without a separate OTP step.
+async function verifyAccessJwt(request, env) {
+  const teamDomain = String(env.CF_ACCESS_TEAM_DOMAIN || '').trim();
+  const aud = String(env.CF_ACCESS_AUD || '').trim();
+  if (!teamDomain || !aud) return null;
+
+  const token = request.headers.get('Cf-Access-Jwt-Assertion') || getCookie(request, 'CF_Authorization');
+  if (!token) return null;
+
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  const [headerB64, payloadB64, sigB64] = parts;
+
+  let header;
+  let payload;
+  try {
+    header = JSON.parse(new TextDecoder().decode(base64UrlToUint8Array(headerB64)));
+    payload = JSON.parse(new TextDecoder().decode(base64UrlToUint8Array(payloadB64)));
+  } catch {
+    return null;
+  }
+
+  if (header.alg !== 'RS256' || !header.kid) return null;
+
+  const audClaim = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+  if (!audClaim.includes(aud)) return null;
+
+  const exp = Number(payload.exp);
+  if (!Number.isFinite(exp) || Date.now() >= exp * 1000) return null;
+
+  if (payload.iss && !String(payload.iss).includes(teamDomain)) return null;
+
+  let keys;
+  try {
+    keys = await getAccessJwks(teamDomain);
+  } catch {
+    return null;
+  }
+
+  const jwk = keys.find((k) => k.kid === header.kid);
+  if (!jwk) return null;
+
+  let cryptoKey;
+  try {
+    cryptoKey = await crypto.subtle.importKey(
+      'jwk',
+      jwk,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+  } catch {
+    return null;
+  }
+
+  const signedData = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
+  const signature = base64UrlToUint8Array(sigB64);
+
+  const valid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', cryptoKey, signature, signedData);
+  if (!valid) return null;
+
+  const email = normalizeEmail(payload.email);
+  if (!email) return null;
+
+  return email;
+}
+
 export async function verifyAdminSession(request, env) {
+  const accessEmail = await verifyAccessJwt(request, env);
+  if (accessEmail && isAllowedEmail(env, accessEmail)) {
+    return { ok: true, status: 200, email: accessEmail };
+  }
+
   const secret = String(env.ADMIN_SESSION_SECRET || '').trim();
   if (!secret) return { ok: false, status: 501, error: 'Session secret not configured' };
 
@@ -218,6 +317,15 @@ export async function handleAdminAuth(request, env, corsHeaders) {
   }
 
   if (url.pathname === '/api/schedule/admin/auth/logout') {
+    const session = await verifyAdminSession(request, env);
+    if (session.ok) {
+      await recordActivity(env, {
+        action: 'admin.logout',
+        entityType: 'admin',
+        actorEmail: session.email,
+      });
+    }
+
     return jsonResponse(
       { ok: true },
       {

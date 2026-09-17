@@ -49,6 +49,11 @@ SCHEDULE_ENFORCE_EMAIL_MATCH = "true"
 # Admin API host allowlist (prevents bypass via *.workers.dev)
 SCHEDULE_ADMIN_ALLOWED_HOSTS = "blackbridgemindset.com,www.blackbridgemindset.com"
 
+# Cloudflare Access (Zero Trust) — lets a successful Access login (e.g. Google SSO)
+# on /admin/* count as an authenticated admin session, skipping the OTP step.
+CF_ACCESS_TEAM_DOMAIN = "getsparqd-server.cloudflareaccess.com"
+CF_ACCESS_AUD = "eb87525f4557840160c81ecaaf43877be7643a6528e0ffab95ab2aeaf1584fbc"
+
 # Admin UI authentication (set this as a secret in production)
 # Run: wrangler secret put SCHEDULE_ADMIN_TOKEN --cwd worker
 # Then paste it into /schedule/admin when managing availability.
@@ -86,3 +91,16 @@ preview_id = "927704e043e44de2bf123f9a68473e19"
  binding = "SCHEDULE_DB"
  database_name = "bb_guest_schedule"
  database_id = "f74dd83d-160d-4a1a-823e-8c8a9cb35ad5"
+
+# ...
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+persist = true
+# ...

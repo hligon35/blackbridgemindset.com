@@ -1,13 +1,14 @@
 import React from 'react';
 
 import './Admin.css';
+import { asset } from '../utils/asset';
 
 export default function AdminShell({ children, email = null, headerActions = null, onLogout = null }) {
   return (
     <div className="admin-shell">
       <header className="admin-topbar">
         <div className="admin-brand">
-          <div className="admin-brand-mark" aria-hidden="true">BB</div>
+          <img className="admin-brand-mark" src={asset('/images/bbmlogo.png')} alt="Black Bridge Mindset" />
           <div>
             <strong>Black Bridge Mindset</strong>
             <span>Admin dashboard</span>

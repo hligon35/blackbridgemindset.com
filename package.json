@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/prepare-spa-routes.mjs",
+    "build": "node scripts/guard-prod-build.mjs && vite build && node scripts/prepare-spa-routes.mjs && node scripts/check-dist-no-localhost.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "worker:dev": "npx wrangler dev -c worker/wrangler.toml",
-    "worker:deploy": "npx wrangler deploy -c worker/wrangler.toml",
+    "worker:deploy": "npm run build && npx wrangler deploy -c worker/wrangler.toml",
     "worker:tail": "npx wrangler tail -c worker/wrangler.toml"
   },
   "dependencies": {

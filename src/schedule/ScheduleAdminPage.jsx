@@ -118,6 +118,20 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
 
   const tours = useMemo(
     () => ({
+      inbox: [
+        {
+          target: 'admin-tab-inbox',
+          title: 'Inbox',
+          body: 'Website contact form submissions land here. Mark them read or archive them once handled.',
+        },
+      ],
+      activity: [
+        {
+          target: 'admin-tab-activity',
+          title: 'Activity',
+          body: 'A timeline of admin actions: logins/logouts, availability updates, newsletter sends, invites, and inbox changes.',
+        },
+      ],
       scheduler: [
         {
           target: 'admin-tab-scheduler',
@@ -507,6 +521,12 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
             role="menu"
             style={{ top: helpAnchor.top, left: helpAnchor.left }}
           >
+            <button className="bbm-help-item" type="button" role="menuitem" onClick={() => startTour('inbox')}>
+              Inbox
+            </button>
+            <button className="bbm-help-item" type="button" role="menuitem" onClick={() => startTour('activity')}>
+              Activity
+            </button>
             <button className="bbm-help-item" type="button" role="menuitem" onClick={() => startTour('scheduler')}>
               Scheduler
             </button>
@@ -636,12 +656,13 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                           key={idx}
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: '130px auto auto',
-                            gap: 10,
+                            gridTemplateColumns: '130px max-content 30px max-content',
+                            gap: 0,
                             alignItems: 'center',
+                            justifyContent: 'center',
                           }}
                         >
-                          <label className="bbm-form-label" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, margin: 0 }}>
+                          <label className="bbm-form-label" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, margin: 0, marginRight: 10 }}>
                             <input
                               type="checkbox"
                               checked={day.enabled}
@@ -724,6 +745,13 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                               </div>
                             );
                           })()}
+
+                          <span
+                            aria-hidden="true"
+                            style={{ width: 30, display: 'flex', justifyContent: 'center', opacity: 0.65 }}
+                          >
+                            &ndash;
+                          </span>
 
                           {(() => {
                             const endParts = splitHHMM(day.end, { hh: '05', mm: '00', ampm: 'PM' });
