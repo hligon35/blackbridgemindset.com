@@ -1,6 +1,8 @@
 import { verifyAdminSession } from './auth';
 import { sendEmail } from '../../email';
 import { wrapBbmEmailHtml, bbmLinkStyle, renderBbmButtonHtml, renderBbmMessageBoxHtml } from '../../emailTheme';
+import { listActivity, listSubmissions, updateSubmissionStatus } from './inbox';
+import { recordActivity } from '../../shared/submissions';
 
 function jsonResponse(body, { status = 200, headers = {} } = {}) {
   return new Response(JSON.stringify(body), {
@@ -405,18 +407,18 @@ function getPublicSiteOrigin(env, fallbackHost) {
 
 async function requireAdminSession(request, env, corsHeaders) {
   const session = await verifyAdminSession(request, env);
-  if (session.ok) return null;
+  if (session.ok) return session;
 
   // Local dev fallback: allow bearer token.
   if (isDevMode(env)) {
     const expected = String(env.SCHEDULE_ADMIN_TOKEN || '').trim();
     if (expected) {
       const got = getBearerToken(request);
-      if (got && got === expected) return null;
+      if (got && got === expected) return { ok: true, email: 'dev-token' };
     }
   }
 
-  return unauthorized(corsHeaders);
+  return { ok: false, response: unauthorized(corsHeaders) };
 }
 
 function enforceAdminHost(request, env, corsHeaders) {
@@ -461,8 +463,9 @@ export async function handleAdmin(request, env, corsHeaders) {
   const hostError = enforceAdminHost(request, env, corsHeaders);
   if (hostError) return hostError;
 
-  const authError = await requireAdminSession(request, env, corsHeaders);
-  if (authError) return authError;
+  const authResult = await requireAdminSession(request, env, corsHeaders);
+  if (!authResult.ok) return authResult.response;
+  const actorEmail = authResult.email || '';
 
   const url = new URL(request.url);
 
@@ -471,6 +474,24 @@ export async function handleAdmin(request, env, corsHeaders) {
     body = await request.json();
   } catch {
     return jsonResponse({ ok: false, error: 'Invalid JSON' }, { status: 400, headers: corsHeaders });
+  }
+
+  if (url.pathname === '/api/schedule/admin/submissions/list') {
+    const result = await listSubmissions(env, body?.status || 'all');
+    if (!result.ok) return jsonResponse({ ok: false, error: result.error }, { status: result.status, headers: corsHeaders });
+    return jsonResponse({ ok: true, submissions: result.submissions }, { status: 200, headers: corsHeaders });
+  }
+
+  if (url.pathname === '/api/schedule/admin/submissions/update') {
+    const result = await updateSubmissionStatus(env, { id: body?.id, status: body?.status, actorEmail });
+    if (!result.ok) return jsonResponse({ ok: false, error: result.error }, { status: result.status, headers: corsHeaders });
+    return jsonResponse({ ok: true }, { status: 200, headers: corsHeaders });
+  }
+
+  if (url.pathname === '/api/schedule/admin/activity/list') {
+    const result = await listActivity(env);
+    if (!result.ok) return jsonResponse({ ok: false, error: result.error }, { status: result.status, headers: corsHeaders });
+    return jsonResponse({ ok: true, activity: result.activity }, { status: 200, headers: corsHeaders });
   }
 
   if (url.pathname === '/api/schedule/admin/availability/get') {
@@ -482,6 +503,12 @@ export async function handleAdmin(request, env, corsHeaders) {
   if (url.pathname === '/api/schedule/admin/availability/set') {
     const res = await writeAvailability(env, body?.availability);
     if (!res.ok) return jsonResponse({ ok: false, error: res.error }, { status: res.status, headers: corsHeaders });
+    await recordActivity(env, {
+      action: 'availability.updated',
+      entityType: 'schedule',
+      actorEmail,
+      detail: { timezone: res.availability?.timezone || '' },
+    });
     return jsonResponse({ ok: true, availability: res.availability }, { status: 200, headers: corsHeaders });
   }
 
@@ -519,6 +546,13 @@ export async function handleAdmin(request, env, corsHeaders) {
     }
 
     await addInviteRecipientToNewsletterBestEffort(env, { email: guestEmail, name: guestName });
+    await recordActivity(env, {
+      action: 'invite.created',
+      entityType: 'invite',
+      entityId: String(created.token || '').slice(0, 12),
+      actorEmail,
+      detail: { guestEmail, expiresAt: created.expiresAt },
+    });
 
     return jsonResponse(
       {
@@ -623,6 +657,12 @@ export async function handleAdmin(request, env, corsHeaders) {
         text,
         html,
       });
+      await recordActivity(env, {
+        action: 'newsletter.sent',
+        entityType: 'newsletter',
+        actorEmail,
+        detail: { recipients: recipients.length, subject: rawSubject },
+      });
       return jsonResponse({ ok: true, recipients: recipients.length }, { status: 200, headers: corsHeaders });
     } catch (e) {
       return jsonResponse(
@@ -651,6 +691,13 @@ export async function handleAdmin(request, env, corsHeaders) {
       if (result.meta.changes === 0) {
         return jsonResponse({ ok: false, error: 'Booking not found' }, { status: 404, headers: corsHeaders });
       }
+
+      await recordActivity(env, {
+        action: 'booking.cancelled',
+        entityType: 'booking',
+        entityId: bookingId,
+        actorEmail,
+      });
 
       return jsonResponse({ ok: true }, { status: 200, headers: corsHeaders });
     } catch (e) {
