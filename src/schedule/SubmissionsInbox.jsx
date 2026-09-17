@@ -91,7 +91,9 @@ export default function SubmissionsInbox() {
         ))}
       </div>
 
-      {state.status === 'error' ? <div className="admin-alert admin-alert-error">{state.error}</div> : null}
+      <div className={`admin-alert admin-alert-${state.status === 'error' ? 'error' : state.status === 'loading' ? 'neutral' : 'success'}`} role="status" aria-live="polite">
+        {state.status === 'error' ? state.error : state.status === 'loading' ? 'Loading submissions…' : submissions.length ? `${submissions.length} submissions in this view.` : 'No submissions in this view yet.'}
+      </div>
 
       {state.status === 'ready' && submissions.length === 0 ? (
         <div className="admin-empty-state">
