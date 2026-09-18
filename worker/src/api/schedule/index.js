@@ -4,6 +4,7 @@ import { handleSlots } from './slots';
 import { handleAdmin } from './admin';
 import { handleAdminAuth } from './auth';
 import { handleNewsletterSubscribe } from './newsletter';
+import { handleNewsletterUnsubscribe } from './newsletterUnsubscribe';
 import { handleBookingIcs } from './ics';
 import { handleYouTubeUploads } from './youtube';
 import { handleGuestGetBooking, handleGuestCancelBooking } from './guest';
@@ -82,6 +83,10 @@ export async function handleScheduleRequest(request, env) {
     for (const [k, v] of Object.entries(sec)) headers.set(k, v);
     for (const [k, v] of Object.entries(cors)) headers.set(k, v);
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+  }
+
+  if (url.pathname === '/api/schedule/newsletter/unsubscribe') {
+    return handleNewsletterUnsubscribe(request, env);
   }
 
   if (request.method === 'OPTIONS') {
