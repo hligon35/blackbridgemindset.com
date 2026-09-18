@@ -26,6 +26,7 @@ EMAIL_TO = "info@blackbridgemindset.com"
 # Example: "noreply@blackbridgemindset.com"
 EMAIL_FROM = "noreply@blackbridgemindset.com"
 FROM_NAME = "Black Bridge Mindset"
+NEWSLETTER_UNSUBSCRIBE_URL = "https://blackbridgemindset.com/api/schedule/newsletter/unsubscribe"
 
 # Email delivery uses Resend through the RESEND_API_KEY secret below.
 # Verify blackbridgemindset.com in Resend before sending from EMAIL_FROM.
