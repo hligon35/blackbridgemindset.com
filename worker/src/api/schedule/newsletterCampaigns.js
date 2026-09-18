@@ -2,6 +2,7 @@ import { sendEmail } from '../../email';
 import { wrapBbmEmailHtml, renderBbmButtonHtml, renderBbmMessageBoxHtml } from '../../emailTheme';
 import { escapeHtml } from '../../shared/sanitize';
 import { recordActivity } from '../../shared/submissions';
+import { getNewsletterUnsubscribeUrl } from './newsletterUnsubscribe';
 
 const MAX_SECTIONS = 6;
 
@@ -73,7 +74,7 @@ function renderSectionHtml(section) {
   `;
 }
 
-export function buildNewsletterEmail({ subject, content, message = '' }) {
+export function buildNewsletterEmail({ subject, content, message = '', env }) {
   const cleanSubject = cleanText(subject, 150, 'Black Bridge Mindset update');
   const normalized = normalizeNewsletterContent(
     content && typeof content === 'object' ? content : { intro: message || DEFAULT_NEWSLETTER_CONTENT.intro }
@@ -82,7 +83,8 @@ export function buildNewsletterEmail({ subject, content, message = '' }) {
     .map((section) => [section.title, section.body].filter(Boolean).join('\n'))
     .filter(Boolean)
     .join('\n\n');
-  const text = [normalized.intro, sectionsText, normalized.ctaLabel && normalized.ctaUrl ? `${normalized.ctaLabel}: ${normalized.ctaUrl}` : '', normalized.closing]
+  const unsubscribeUrl = getNewsletterUnsubscribeUrl(env);
+  const text = [normalized.intro, sectionsText, normalized.ctaLabel && normalized.ctaUrl ? `${normalized.ctaLabel}: ${normalized.ctaUrl}` : '', normalized.closing, `Manage your subscription: ${unsubscribeUrl}`]
     .filter(Boolean)
     .join('\n\n');
 
@@ -91,6 +93,7 @@ export function buildNewsletterEmail({ subject, content, message = '' }) {
     ${normalized.sections.map(renderSectionHtml).join('')}
     ${normalized.ctaLabel && normalized.ctaUrl ? `<div style="margin:22px 0 0 0;">${renderBbmButtonHtml({ hrefEscaped: escapeHtml(normalized.ctaUrl), labelEscaped: escapeHtml(normalized.ctaLabel) })}</div>` : ''}
     <p style="margin:22px 0 0 0; color:#d5dbe0; white-space:pre-wrap;">${escapeHtml(normalized.closing)}</p>
+    <div style="margin:24px 0 0 0; padding-top:16px; border-top:1px solid #35414d; color:#bfc7cf; font-size:12px; line-height:1.5;">You’re receiving this because you joined the Black Bridge Mindset community. <a href="${escapeHtml(unsubscribeUrl)}" style="color:#f7c873; text-decoration:underline;">Unsubscribe</a></div>
   `;
 
   const html = wrapBbmEmailHtml({
@@ -239,7 +242,7 @@ async function getStoredSubscribers(env) {
 
 async function sendCampaignRow(env, row, recipients, actorEmail = '') {
   const campaign = campaignRow(row);
-  const email = buildNewsletterEmail({ subject: campaign.subject, content: campaign.content });
+  const email = buildNewsletterEmail({ subject: campaign.subject, content: campaign.content, env });
   await sendEmail(env, {
     to: recipients,
     fromEmail: env.EMAIL_FROM,
