@@ -864,23 +864,23 @@
 }
 
 .newsletter-preview-panel {
-  border-color: #35414d;
-  background: #111820;
-  color: #f5f7fa;
+  border-color: #d9e0e7;
+  background: #f6f8fa;
+  color: #17202b;
 }
 
 .newsletter-preview-panel .admin-section-heading h2 {
-  color: #ffffff;
+  color: #17202b;
 }
 
 .newsletter-preview-panel .admin-section-heading .admin-inline-note {
-  border-color: #c49230;
-  background: rgba(247, 200, 115, 0.1);
-  color: #f7c873;
+  border-color: #d5dce5;
+  background: #ffffff;
+  color: #536172;
 }
 
 .newsletter-preview-panel .admin-form-label {
-  color: #d2d8de;
+  color: #536172;
 }
 
 .newsletter-preview-frame {
