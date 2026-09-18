@@ -1001,6 +1001,12 @@
   text-align: center;
 }
 
+.newsletter-preview-footer a {
+  color: #8b651d;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
 .newsletter-test-form {
   margin-top: 16px;
 }
