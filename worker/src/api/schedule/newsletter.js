@@ -1,5 +1,6 @@
 import { sendEmail } from '../../email';
 import { wrapBbmEmailHtml } from '../../emailTheme';
+import { getNewsletterUnsubscribeUrl } from './newsletterUnsubscribe';
 
 function jsonResponse(body, { status = 200, headers = {} } = {}) {
   return new Response(JSON.stringify(body), {
@@ -68,13 +69,13 @@ async function setSubscriberLabels(env, map) {
   return { ok: true, status: 200 };
 }
 
-function buildWelcomeEmail({ firstName }) {
+function buildWelcomeEmail({ firstName, unsubscribeUrl }) {
   const fn = String(firstName || '').trim();
   const greeting = fn ? `Hi ${fn},` : 'Hi,';
 
   const subject = 'Welcome to the Black Bridge Mindset Community';
 
-  const text = `${greeting}\n\nThank you for subscribing to the Black Bridge Mindset Podcast. You’re officially part of a community committed to growth, resilience, and building the mindset that carries you across every bridge in life. I’m grateful you’re here. If you ever want to share your story, ask a question, or suggest a guest, just reply to this email. This platform grows stronger with every voice that joins it.\nWelcome to the bridge.\n\n— Mike, Host of Black Bridge Mindset`;
+  const text = `${greeting}\n\nThank you for subscribing to the Black Bridge Mindset Podcast. You’re officially part of a community committed to growth, resilience, and building the mindset that carries you across every bridge in life. I’m grateful you’re here. If you ever want to share your story, ask a question, or suggest a guest, just reply to this email. This platform grows stronger with every voice that joins it.\nWelcome to the bridge.\n\n— Mike, Host of Black Bridge Mindset\n\nManage your subscription: ${unsubscribeUrl}`;
 
   const html = wrapBbmEmailHtml({
     title: subject,
@@ -84,6 +85,7 @@ function buildWelcomeEmail({ firstName }) {
       <p style="margin:0 0 12px 0;">Thank you for subscribing to the Black Bridge Mindset Podcast. You’re officially part of a community committed to growth, resilience, and building the mindset that carries you across every bridge in life. I’m grateful you’re here. If you ever want to share your story, ask a question, or suggest a guest, just reply to this email. This platform grows stronger with every voice that joins it.</p>
       <p style="margin:0 0 12px 0;">Welcome to the bridge.</p>
       <p style="margin:0;">— Mike, Host of Black Bridge Mindset</p>
+      <p style="margin:24px 0 0; padding-top:16px; border-top:1px solid #35414d; color:#bfc7cf; font-size:12px; line-height:1.5;">You’re receiving this because you joined the Black Bridge Mindset community. <a href="${escapeHtml(unsubscribeUrl)}" style="color:#f7c873; text-decoration:underline;">Unsubscribe</a></p>
     `,
   });
 
@@ -180,7 +182,7 @@ export async function handleNewsletterSubscribe(request, env, corsHeaders) {
       const fromEmail = String(env.EMAIL_FROM || '').trim();
       const fromName = String(env.FROM_NAME || 'Black Bridge Mindset').trim();
       if (fromEmail) {
-        const { subject, text, html } = buildWelcomeEmail({ firstName });
+        const { subject, text, html } = buildWelcomeEmail({ firstName, unsubscribeUrl: getNewsletterUnsubscribeUrl(env) });
         await sendEmail(env, {
           to: [email],
           fromEmail,
