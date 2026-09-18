@@ -667,21 +667,21 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                     </label>
                   </div>
 
-                  <div>
-                    <div className="bbm-contact-subtitle" style={{ marginTop: 8 }}>Weekly hours</div>
-                    <div data-bbm-tour="scheduler-weekly-hours-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+                  <div className="scheduler-weekly-section">
+                    <div className="bbm-contact-subtitle scheduler-weekly-title">Weekly hours</div>
+                    <div className="scheduler-weekly-grid" data-bbm-tour="scheduler-weekly-hours-grid">
+                      <div className="scheduler-grid-header" aria-hidden="true">
+                        <span>Day</span>
+                        <span>Starts</span>
+                        <span aria-hidden="true" />
+                        <span>Ends</span>
+                      </div>
                       {availabilityDraft.days.map((day, idx) => (
                         <div
                           key={idx}
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: '130px max-content 30px max-content',
-                            gap: 0,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
+                          className={`scheduler-hours-row ${day.enabled ? 'is-enabled' : 'is-disabled'}`}
                         >
-                          <label className="bbm-form-label" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, margin: 0, marginRight: 10 }}>
+                          <label className="scheduler-day-toggle">
                             <input
                               type="checkbox"
                               checked={day.enabled}
@@ -692,13 +692,14 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                                 }))
                               }
                             />
-                            <span>{DAY_LABELS[idx]}</span>
+                            <span className="scheduler-day-name">{DAY_LABELS[idx]}</span>
+                            <span className="scheduler-day-status">{day.enabled ? 'Available' : 'Off'}</span>
                           </label>
 
                           {(() => {
                             const startParts = splitHHMM(day.start, { hh: '09', mm: '00', ampm: 'AM' });
                             return (
-                              <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center', justifyContent: 'flex-start' }}>
+                              <div className="scheduler-time-controls scheduler-start-controls">
                                 <select
                                   className="bbm-form-input"
                                   value={startParts.hh}
@@ -711,7 +712,6 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                                       ),
                                     }))
                                   }
-                                  style={{ width: 'fit-content' }}
                                 >
                                   {HOUR_OPTIONS.map((hh) => (
                                     <option key={hh} value={hh}>
@@ -732,7 +732,6 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                                       ),
                                     }))
                                   }
-                                  style={{ width: 'fit-content' }}
                                 >
                                   {MINUTE_OPTIONS.map((mm) => (
                                     <option key={mm} value={mm}>
@@ -753,7 +752,6 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                                       ),
                                     }))
                                   }
-                                  style={{ width: 'fit-content' }}
                                 >
                                   {MERIDIEM_OPTIONS.map((m) => (
                                     <option key={m} value={m}>
@@ -765,17 +763,12 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                             );
                           })()}
 
-                          <span
-                            aria-hidden="true"
-                            style={{ width: 30, display: 'flex', justifyContent: 'center', opacity: 0.65 }}
-                          >
-                            &ndash;
-                          </span>
+                          <span className="scheduler-time-separator" aria-hidden="true">to</span>
 
                           {(() => {
                             const endParts = splitHHMM(day.end, { hh: '05', mm: '00', ampm: 'PM' });
                             return (
-                              <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center', justifyContent: 'flex-start' }}>
+                              <div className="scheduler-time-controls scheduler-end-controls">
                                 <select
                                   className="bbm-form-input"
                                   value={endParts.hh}
@@ -788,7 +781,6 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                                       ),
                                     }))
                                   }
-                                  style={{ width: 'fit-content' }}
                                 >
                                   {HOUR_OPTIONS.map((hh) => (
                                     <option key={hh} value={hh}>
@@ -809,7 +801,6 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                                       ),
                                     }))
                                   }
-                                  style={{ width: 'fit-content' }}
                                 >
                                   {MINUTE_OPTIONS.map((mm) => (
                                     <option key={mm} value={mm}>
@@ -830,7 +821,6 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                                       ),
                                     }))
                                   }
-                                  style={{ width: 'fit-content' }}
                                 >
                                   {MERIDIEM_OPTIONS.map((m) => (
                                     <option key={m} value={m}>
@@ -844,7 +834,7 @@ export default function ScheduleAdminPage({ skipSessionCheck = false, sessionEma
                         </div>
                       ))}
                     </div>
-                    <p className="bbm-contact-text" style={{ textAlign: 'center', opacity: 0.85, fontSize: 14, marginTop: 10 }}>
+                    <p className="bbm-contact-text scheduler-timezone-note">
                       Times are interpreted in <b>{availabilityDraft.timezone}</b>.
                     </p>
                   </div>
