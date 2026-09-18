@@ -674,6 +674,132 @@
   color: #7f1d1d;
 }
 
+.scheduler-weekly-section {
+  margin-top: 24px;
+}
+
+.scheduler-weekly-title {
+  margin: 0 0 10px;
+}
+
+.scheduler-weekly-grid {
+  overflow: hidden;
+  border: 1px solid #d8dee6;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.scheduler-grid-header,
+.scheduler-hours-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.72fr) minmax(250px, 1fr) 34px minmax(250px, 1fr);
+  align-items: center;
+}
+
+.scheduler-grid-header {
+  min-height: 36px;
+  padding: 0 16px;
+  background: #eef2f6;
+  color: #687585;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.scheduler-hours-row {
+  min-height: 68px;
+  padding: 9px 16px;
+  border-top: 1px solid #e1e6ec;
+  background: #ffffff;
+  transition: background 0.15s ease;
+}
+
+.scheduler-hours-row.is-disabled {
+  background: #f8fafc;
+}
+
+.scheduler-day-toggle {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  color: #334252;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.scheduler-day-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #c49230;
+}
+
+.scheduler-day-name {
+  white-space: nowrap;
+}
+
+.scheduler-day-status {
+  justify-self: start;
+  padding: 4px 7px;
+  border: 1px solid #d8dee6;
+  border-radius: 999px;
+  color: #7b8794;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.scheduler-hours-row.is-enabled .scheduler-day-status {
+  border-color: #c49230;
+  background: #fff8e8;
+  color: #765415;
+}
+
+.scheduler-hours-row.is-disabled .scheduler-day-toggle,
+.scheduler-hours-row.is-disabled .scheduler-time-controls,
+.scheduler-hours-row.is-disabled .scheduler-time-separator {
+  opacity: 0.62;
+}
+
+.scheduler-time-controls {
+  display: grid;
+  grid-template-columns: 58px 10px 58px 68px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.scheduler-time-controls .bbm-form-input {
+  width: 100%;
+  min-width: 0;
+  padding-right: 7px;
+  padding-left: 7px;
+}
+
+.scheduler-time-controls > span {
+  color: #687585;
+  text-align: center;
+}
+
+.scheduler-time-separator {
+  color: #8b651d;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.scheduler-timezone-note {
+  margin: 12px 0 0;
+  text-align: center;
+  opacity: 0.85;
+  font-size: 13px;
+}
+
 .newsletter-builder {
   display: grid;
   gap: 18px;
@@ -1475,6 +1601,53 @@
 
   .admin-submission-detail {
     padding: 20px;
+  }
+
+  .scheduler-grid-header {
+    display: none;
+  }
+
+  .scheduler-hours-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .scheduler-day-toggle {
+    width: 100%;
+  }
+
+  .scheduler-time-controls {
+    position: relative;
+    grid-template-columns: 58px 10px 58px 68px;
+    width: max-content;
+    padding-top: 15px;
+  }
+
+  .scheduler-start-controls::before,
+  .scheduler-end-controls::before {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: #687585;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .scheduler-start-controls::before {
+    content: 'Starts';
+  }
+
+  .scheduler-end-controls::before {
+    content: 'Ends';
+  }
+
+  .scheduler-time-separator {
+    justify-self: start;
+    text-align: left;
   }
 
   .newsletter-builder-grid {
