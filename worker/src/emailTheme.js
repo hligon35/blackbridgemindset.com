@@ -31,11 +31,12 @@ export function wrapBbmEmailHtml({
   const footer = String(footerHtml || '');
 
   // Theme tokens mirror the Black Bridge Mindset site: charcoal, slate, gold, and silver.
-  const bg = '#07090b';
+  const bg = '#eef2f6';
   const panel = '#121a22';
   const border = '#35414d';
   const text = '#f5f7fa';
-  const muted = '#bfc7cf';
+  const outerText = '#17202b';
+  const outerMuted = '#687585';
   const accent = '#f7c873';
   const logoUrl = 'https://blackbridgemindset.com/images/bbmlogo.png';
 
@@ -69,11 +70,11 @@ export function wrapBbmEmailHtml({
                     </td>
                     <td valign="middle">
                       <div style="font-size:12px; letter-spacing:3px; text-transform:uppercase; color:${accent}; font-weight:800;">Black Bridge Mindset</div>
-                      <div style="margin-top:4px; color:${muted}; font-size:12px;">The conversations that carry us forward.</div>
+                      <div style="margin-top:4px; color:${outerMuted}; font-size:12px;">The conversations that carry us forward.</div>
                     </td>
                   </tr>
                 </table>
-                ${t ? `<div style="margin-top:22px; font-family:Georgia, 'Times New Roman', serif; font-size:28px; line-height:1.18; font-weight:700; color:${text};">${escapeHtml(t)}</div>` : ''}
+                ${t ? `<div style="margin-top:22px; font-family:Georgia, 'Times New Roman', serif; font-size:28px; line-height:1.18; font-weight:700; color:${outerText};">${escapeHtml(t)}</div>` : ''}
                 <div style="margin-top:16px; height:2px; background:${accent}; width:100%;"></div>
               </td>
             </tr>
@@ -83,7 +84,7 @@ export function wrapBbmEmailHtml({
               </td>
             </tr>
             <tr>
-              <td style="padding:14px 2px 0 2px; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:${muted}; font-size:12px; line-height:1.5;">
+              <td style="padding:14px 2px 0 2px; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:${outerMuted}; font-size:12px; line-height:1.5;">
                 ${(() => {
                   const brand = `
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;">
