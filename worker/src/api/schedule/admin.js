@@ -708,6 +708,7 @@ export async function handleAdmin(request, env, corsHeaders) {
       subject: rawSubject,
       content: body?.content,
       message: rawMessage,
+      env,
     });
 
     try {
