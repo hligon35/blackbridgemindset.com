@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "node scripts/guard-prod-build.mjs && vite build && node scripts/prepare-spa-routes.mjs && node scripts/check-dist-no-localhost.mjs",
+    "build:prod": "node scripts/build-prod.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "worker:dev": "npx wrangler dev -c worker/wrangler.toml",
-    "worker:deploy": "npm run build && npx wrangler deploy -c worker/wrangler.toml",
+    "worker:deploy": "node scripts/build-prod.mjs && npx wrangler deploy -c worker/wrangler.toml",
     "worker:tail": "npx wrangler tail -c worker/wrangler.toml"
   },
   "dependencies": {
